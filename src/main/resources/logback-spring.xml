@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<springProfile name="dev">
+	<configuration>
+		<property name="Logs" value="/Users/anchitseth/Documents/eat-n-greet_workspace/backend/bookingmicroservice/src/main/resources/logs" />
+		<appender name="RollingFile"
+			class="ch.qos.logback.core.rolling.RollingFileAppender">
+			<file>/${Logs}/application.log</file>
+			<encoder
+				class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+				<Pattern>%d{yyyy-MM-dd HH:mm:ss} - %-5level - %logger{36} - %msg%n
+				</Pattern>
+			</encoder>
+			<rollingPolicy
+				class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+				            <!-- rollover daily -->
+				<fileNamePattern>/${Logs}/archived/debug.%d{yyyy-MM-dd-HH}.%i.log
+				</fileNamePattern>
+				<maxHistory>30</maxHistory>
+				<timeBasedFileNamingAndTriggeringPolicy
+					class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+					<maxFileSize>10MB</maxFileSize>
+				</timeBasedFileNamingAndTriggeringPolicy>
+			</rollingPolicy>
+		</appender>
+		<appender name="CONSOLE"
+			class="ch.qos.logback.core.ConsoleAppender">
+			<layout class="ch.qos.logback.classic.PatternLayout">
+				<Pattern>
+					%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n
+				</Pattern>
+			</layout>
+		</appender>
+		<logger name="com.nus.iss.eatngreet.booking" level="debug"
+			additivity="false">
+			<appender-ref ref="RollingFile" />
+			<appender-ref ref="CONSOLE" />
+		</logger>
+		<root level="error">
+			<appender-ref ref="RollingFile" />
+			<appender-ref ref="CONSOLE" />
+		</root>
+	</configuration>
+</springProfile>
