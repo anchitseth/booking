@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: bookingmicroservice
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: bookingmicroservice
+    spec:
+      containers:
+      - image: rajagupt/booking
+        name: bookingmicroservice
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        imagePullPolicy: Always
+        ports:
+        - name: booking-port
+          containerPort: 8081
+status: {}
