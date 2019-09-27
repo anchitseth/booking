@@ -10,7 +10,7 @@ spec:
         app: bookingmicroservice
     spec:
       containers:
-      - image: rajagupt/booking
+      - image: rajagupt/booking:2
         name: bookingmicroservice
         resources:
           limits:
