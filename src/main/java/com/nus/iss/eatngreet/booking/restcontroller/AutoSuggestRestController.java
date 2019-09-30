@@ -1,8 +1,9 @@
 package com.nus.iss.eatngreet.booking.restcontroller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,19 +20,19 @@ public class AutoSuggestRestController {
 	@Autowired
 	private AutoSuggestService autoSuggestService;
 
-	@RequestMapping(method = RequestMethod.GET, value = "/items")
+	@GetMapping("/items")
 	public DataResponseDTO getItems(@RequestParam(name = "item") String item) {
 		log.info("\ngetItems() of AutoSuggestRestController.");
 		return autoSuggestService.getItems(item);
 	}
 	
-	@RequestMapping(method = RequestMethod.GET, value = "/all-items")
+	@GetMapping("/all-items")
 	public DataResponseDTO getAllItems() {
 		log.info("\ngetAllItems() of AutoSuggestRestController.");
 		return autoSuggestService.getAllItems();
 	}
 	
-	@RequestMapping(method = RequestMethod.POST, value = "/all-item-names")
+	@PostMapping("/all-item-names")
 	public DataResponseDTO getAllItemNames() {
 		log.info("\ngetAllItems() of AutoSuggestRestController.");
 		return autoSuggestService.getAllItemNames();

@@ -10,7 +10,7 @@ public class ProducerOrderRequestDto {
 	private List<String> itemList;
 	private Date servingDate;
 	private Date reservationDeadline;
-	private Long price;
+	private Float price;
 	private Long maxPeopleCount;
 	private Long preferenceType;
 	private String otherItems;

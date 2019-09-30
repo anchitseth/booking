@@ -31,7 +31,22 @@
 				</Pattern>
 			</layout>
 		</appender>
-		<logger name="com.nus.iss.eatngreet.booking" level="debug"
+		<logger name="com.nus.iss.eatngreet.booking.debug" level="debug"
+			additivity="false">
+			<appender-ref ref="RollingFile" />
+			<appender-ref ref="CONSOLE" />
+		</logger>
+		<logger name="com.nus.iss.eatngreet.booking.info" level="info"
+			additivity="false">
+			<appender-ref ref="RollingFile" />
+			<appender-ref ref="CONSOLE" />
+		</logger>
+		<logger name="com.nus.iss.eatngreet.booking.warn" level="warn"
+			additivity="false">
+			<appender-ref ref="RollingFile" />
+			<appender-ref ref="CONSOLE" />
+		</logger>
+		<logger name="com.nus.iss.eatngreet.booking.error" level="error"
 			additivity="false">
 			<appender-ref ref="RollingFile" />
 			<appender-ref ref="CONSOLE" />

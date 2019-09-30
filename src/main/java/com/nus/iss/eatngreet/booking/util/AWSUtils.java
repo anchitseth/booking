@@ -68,7 +68,8 @@ public class AWSUtils {
 	public void uploadToS3(MultipartFile multipartFile) {
 		log.info("upload to S3 ");
 		String fileName = "";
-		File file, thumbnailFile;
+		File file;
+		File thumbnailFile;
 		try {
 			file = convertMultiPartToFile(multipartFile);
 			if (file != null) {
@@ -80,7 +81,9 @@ public class AWSUtils {
 						new PutObjectRequest(bucketName, itemFolderName + "/" + thumbnailFolderName + "/" + fileName,
 								thumbnailFile).withCannedAcl(CannedAccessControlList.PublicRead));
 				file.delete();
-				thumbnailFile.delete();
+				if (thumbnailFile != null) {
+					thumbnailFile.delete();
+				}
 				ItemEntity fileInfo = new ItemEntity();
 				fileInfo.setImageUrl(s3Client.getUrl(bucketName, itemFolderName + "/" + fileName).toString());
 				fileInfo.setImageThumbnailUrl(s3Client

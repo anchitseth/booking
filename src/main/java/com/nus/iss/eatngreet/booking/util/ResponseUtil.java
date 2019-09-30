@@ -13,4 +13,8 @@ public class ResponseUtil {
 			response.setInfo(info);
 		}
 	}
+	
+	private ResponseUtil() {
+		
+	}
 }
