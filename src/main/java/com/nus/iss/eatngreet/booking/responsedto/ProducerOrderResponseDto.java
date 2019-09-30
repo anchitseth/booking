@@ -21,7 +21,7 @@ public class ProducerOrderResponseDto {
 	private Date servingDate;
 	private Date paymentDeadline;
 	private Date reservationDeadline;
-	private Long price;
+	private Float price;
 	private Long maxPeopleCount;
 	private Long actualPeopleCount = 0L;
 	private Long preferenceType;

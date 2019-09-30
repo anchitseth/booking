@@ -53,7 +53,7 @@ public class ProducerOrderEntity {
 	private Date reservationDeadline;
 
 	@Column(name = "price")
-	private Long price;
+	private Float price;
 
 	@Column(name = "max_people_count")
 	private Long maxPeopleCount;

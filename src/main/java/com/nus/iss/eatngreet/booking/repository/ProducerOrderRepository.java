@@ -12,7 +12,7 @@ import com.nus.iss.eatngreet.booking.entity.ProducerOrderEntity;
 @Repository
 public interface ProducerOrderRepository extends CrudRepository<ProducerOrderEntity, Long> {
 
-	@Query("select p from ProducerOrderEntity p where p.servingDate >= CURRENT_DATE and p.reservationDeadline >= CURRENT_DATE and p.isActive = true and p.isDeleted = false")
+	@Query("select p from ProducerOrderEntity p where p.servingDate >= CURRENT_DATE and p.reservationDeadline >= CURRENT_DATE and p.isActive = true and p.isDeleted = false and p.actualPeopleCount < p.maxPeopleCount")
 	List<ProducerOrderEntity> findAllProducerRecords(Pageable pageable);
 
 	List<ProducerOrderEntity> findByEmail(String email);

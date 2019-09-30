@@ -27,17 +27,5 @@ public class AWSS3RestController {
     	log.info("uploadFile() of S3BucketRestController");
         return awsS3Service.uploadItem(images);
     }
-
-//    @DeleteMapping("/delete-item")
-//    public CommonResponseDTO deleteItem(@RequestPart(value = "url") String fileUrl) {
-//    	log.info("deleteFile() of S3BucketRestController");
-//        return awsS3Service.deleteFile(fileUrl);
-//    }
-//    
-//    @PostMapping("/get-all-image-urls")
-//    public CommonResponseDTO getAllItems() {
-//    	log.info("getAllImages() of S3BucketRestController");
-//        return awsS3Service.getAllImages();
-//    }
 	
 }
