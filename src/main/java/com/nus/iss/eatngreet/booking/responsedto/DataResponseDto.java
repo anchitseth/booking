@@ -3,7 +3,7 @@ package com.nus.iss.eatngreet.booking.responsedto;
 import java.util.Map;
 
 @SuppressWarnings("rawtypes")
-public class DataResponseDTO extends CommonResponseDto {
+public class DataResponseDto extends CommonResponseDto {
 
 	private Map data;
 
@@ -31,7 +31,7 @@ public class DataResponseDTO extends CommonResponseDto {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		DataResponseDTO other = (DataResponseDTO) obj;
+		DataResponseDto other = (DataResponseDto) obj;
 		if (data == null) {
 			if (other.data != null)
 				return false;

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.nus.iss.eatngreet.booking.entity.ItemEntity;
 import com.nus.iss.eatngreet.booking.repository.ItemRepository;
-import com.nus.iss.eatngreet.booking.responsedto.DataResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
 import com.nus.iss.eatngreet.booking.service.AutoSuggestService;
 import com.nus.iss.eatngreet.booking.util.ResponseUtil;
 import com.nus.iss.eatngreet.booking.util.Util;
@@ -26,9 +26,9 @@ public class AutoSuggestServiceImpl implements AutoSuggestService {
 	@Autowired
 	private ItemRepository itemRepository;
 
-	public DataResponseDTO getItems(String itemName) {
+	public DataResponseDto getItems(String itemName) {
 		log.info("getFromAreaPincodes() of AutoSuggestServiceImpl.");
-		DataResponseDTO response = new DataResponseDTO();
+		DataResponseDto response = new DataResponseDto();
 		int count = 30;
 		if (Util.isStringEmpty(itemName)) {
 			response.setData(null);
@@ -70,9 +70,9 @@ public class AutoSuggestServiceImpl implements AutoSuggestService {
 	}
 
 	@Override
-	public DataResponseDTO getAllItems() {
+	public DataResponseDto getAllItems() {
 		log.info("getFromAreaPincodes() of AutoSuggestServiceImpl.");
-		DataResponseDTO response = new DataResponseDTO();
+		DataResponseDto response = new DataResponseDto();
 		try {
 			List<ItemEntity> items = itemRepository.findAll();
 			if (!Util.isListEmpty(items)) {
@@ -106,9 +106,9 @@ public class AutoSuggestServiceImpl implements AutoSuggestService {
 	}
 
 	@Override
-	public DataResponseDTO getAllItemNames() {
+	public DataResponseDto getAllItemNames() {
 		log.info("getFromAreaPincodes() of AutoSuggestServiceImpl.");
-		DataResponseDTO response = new DataResponseDTO();
+		DataResponseDto response = new DataResponseDto();
 		try {
 			List<ItemEntity> items = itemRepository.findAll();
 			if (!Util.isListEmpty(items)) {

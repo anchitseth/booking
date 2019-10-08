@@ -14,7 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.nus.iss.eatngreet.booking.entity.ItemEntity;
 import com.nus.iss.eatngreet.booking.repository.ItemRepository;
 import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
-import com.nus.iss.eatngreet.booking.responsedto.DataResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
 import com.nus.iss.eatngreet.booking.service.AWSS3Service;
 import com.nus.iss.eatngreet.booking.util.AWSUtils;
 import com.nus.iss.eatngreet.booking.util.ResponseUtil;
@@ -70,7 +70,7 @@ public class AWSS3ServiceImpl implements AWSS3Service {
 
 	@Override
 	public CommonResponseDto getAllImages() {
-		DataResponseDTO response = new DataResponseDTO();
+		DataResponseDto response = new DataResponseDto();
 		try {
 			Iterable<ItemEntity> allImageData = itemRepository.findAll();
 			List<Map<String, Object>> imagesURLList = new ArrayList<Map<String, Object>>();

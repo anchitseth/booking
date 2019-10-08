@@ -1,13 +1,13 @@
 package com.nus.iss.eatngreet.booking.service;
 
-import com.nus.iss.eatngreet.booking.responsedto.DataResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
 
 public interface AutoSuggestService {
 	
-	public DataResponseDTO getItems(String itemName);
+	public DataResponseDto getItems(String itemName);
 
-	public DataResponseDTO getAllItems();
+	public DataResponseDto getAllItems();
 
-	public DataResponseDTO getAllItemNames();
+	public DataResponseDto getAllItemNames();
 
 }

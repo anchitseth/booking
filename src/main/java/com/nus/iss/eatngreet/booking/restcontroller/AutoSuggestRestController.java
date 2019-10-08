@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nus.iss.eatngreet.booking.responsedto.DataResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
 import com.nus.iss.eatngreet.booking.service.AutoSuggestService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -21,19 +21,19 @@ public class AutoSuggestRestController {
 	private AutoSuggestService autoSuggestService;
 
 	@GetMapping("/items")
-	public DataResponseDTO getItems(@RequestParam(name = "item") String item) {
+	public DataResponseDto getItems(@RequestParam(name = "item") String item) {
 		log.info("\ngetItems() of AutoSuggestRestController.");
 		return autoSuggestService.getItems(item);
 	}
 	
 	@GetMapping("/all-items")
-	public DataResponseDTO getAllItems() {
+	public DataResponseDto getAllItems() {
 		log.info("\ngetAllItems() of AutoSuggestRestController.");
 		return autoSuggestService.getAllItems();
 	}
 	
 	@PostMapping("/all-item-names")
-	public DataResponseDTO getAllItemNames() {
+	public DataResponseDto getAllItemNames() {
 		log.info("\ngetAllItems() of AutoSuggestRestController.");
 		return autoSuggestService.getAllItemNames();
 	}

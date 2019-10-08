@@ -27,7 +27,7 @@ import com.nus.iss.eatngreet.booking.repository.ProducerOrderRepository;
 import com.nus.iss.eatngreet.booking.requestdto.ConsumerOrderRequestDto;
 import com.nus.iss.eatngreet.booking.requestdto.ProducerOrderRequestDto;
 import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
-import com.nus.iss.eatngreet.booking.responsedto.DataResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.MyConsumerOrdersResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.MyProducerOrdersResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.ProducerOrderResponseDto;
@@ -87,7 +87,7 @@ public class BookingServiceImpl implements BookingService {
 						"Successfully created producer order.", true);
 				List<ProducerOrderEntity> producerOrders = new ArrayList<>();
 				producerOrders.add(producerOrderEntity);
-				DataResponseDTO userDetailsResponse = getProducersNameAndAddress(producerOrders);
+				DataResponseDto userDetailsResponse = getProducersNameAndAddress(producerOrders);
 				if (userDetailsResponse.isSuccess()) {
 					Map<String, Object> userResponse = userDetailsResponse.getData();
 					Map<String, Object> info = (Map<String, Object>) userResponse.get("userInfo");
@@ -285,7 +285,7 @@ public class BookingServiceImpl implements BookingService {
 		headers.set("Content-Type", "application/json");
 		HttpEntity<Map<String, Set<String>>> userInfoReqEntity = new HttpEntity<>(emailIdMap, headers);
 		RestTemplate restTemplate = new RestTemplate();
-		DataResponseDTO userResponse = restTemplate.postForObject(uri, userInfoReqEntity, DataResponseDTO.class);
+		DataResponseDto userResponse = restTemplate.postForObject(uri, userInfoReqEntity, DataResponseDto.class);
 		if (userResponse.isSuccess()) {
 			Map<String, Object> details = (Map<String, Object>) userResponse.getData().get("userInfo");
 			Map<String, Object> hostDetails = (Map<String, Object>) details
@@ -364,16 +364,16 @@ public class BookingServiceImpl implements BookingService {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public DataResponseDTO fetchAllProducerOrders() {
+	public DataResponseDto fetchAllProducerOrders() {
 		ApplicationLogger.logInfoMessage("Starting BookingServiceImpl for fetch all producer orders",
 				BookingServiceImpl.class);
-		DataResponseDTO response = new DataResponseDTO();
+		DataResponseDto response = new DataResponseDto();
 		try {
 			Integer count = 30;
 			List<ProducerOrderEntity> prodEntities = producerOrderRepository
 					.findAllProducerRecords(PageRequest.of(0, count));
 			if (!prodEntities.isEmpty()) {
-				DataResponseDTO dataResponseDTO = getProducersNameAndAddress(prodEntities);
+				DataResponseDto dataResponseDTO = getProducersNameAndAddress(prodEntities);
 				if (dataResponseDTO.isSuccess()) {
 					Map<String, Object> userInfo = (Map<String, Object>) dataResponseDTO.getData().get("userInfo");
 					Map<String, List<ProducerOrderResponseDto>> responseMap = getResponseMap(userInfo, prodEntities);
@@ -433,7 +433,7 @@ public class BookingServiceImpl implements BookingService {
 		return data;
 	}
 
-	private DataResponseDTO getProducersNameAndAddress(List<ProducerOrderEntity> prodEntities) {
+	private DataResponseDto getProducersNameAndAddress(List<ProducerOrderEntity> prodEntities) {
 		Map<String, Set<String>> emailIdMap = new HashMap<>();
 		Set<String> emailIdSet = new HashSet<>();
 		for (ProducerOrderEntity producerOrderEntity : prodEntities) {
@@ -448,7 +448,7 @@ public class BookingServiceImpl implements BookingService {
 		headers.set("Content-Type", "application/json");
 		HttpEntity<Map<String, Set<String>>> entity = new HttpEntity<>(emailIdMap, headers);
 		RestTemplate restTemplate = new RestTemplate();
-		return restTemplate.postForObject(uri, entity, DataResponseDTO.class);
+		return restTemplate.postForObject(uri, entity, DataResponseDto.class);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -514,7 +514,7 @@ public class BookingServiceImpl implements BookingService {
 	public CommonResponseDto fetchSingleItem(Long producerOrderId) {
 		ApplicationLogger.logInfoMessage("Starting BookingServiceImpl for fetching single producer order",
 				BookingServiceImpl.class);
-		DataResponseDTO response = new DataResponseDTO();
+		DataResponseDto response = new DataResponseDto();
 		try {
 			if (!Util.isLongValueEmpty(producerOrderId)) {
 				List<ProducerOrderEntity> prodEntityList = producerOrderRepository
@@ -524,7 +524,7 @@ public class BookingServiceImpl implements BookingService {
 					if (prodEntity != null) {
 						List<ProducerOrderEntity> prodEntities = new ArrayList<>();
 						prodEntities.add(prodEntity);
-						DataResponseDTO dataResponseDTO = getProducersNameAndAddress(prodEntities);
+						DataResponseDto dataResponseDTO = getProducersNameAndAddress(prodEntities);
 						if (dataResponseDTO.isSuccess()) {
 							Map<String, Object> userResponse = dataResponseDTO.getData();
 							Map<String, List<ProducerOrderResponseDto>> responseMap = getResponseMap(
@@ -555,8 +555,8 @@ public class BookingServiceImpl implements BookingService {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public DataResponseDTO fetchSingleConsumerItem(HttpServletRequest request) {
-		DataResponseDTO response = new DataResponseDTO();
+	public DataResponseDto fetchSingleConsumerItem(HttpServletRequest request) {
+		DataResponseDto response = new DataResponseDto();
 		Map<String, List<MyConsumerOrdersResponseDto>> consumerOrderResponseMap = new HashMap<>();
 		String email = Util.getDecryptedEmail(request);
 		if (Util.isValidEmail(email)) {
@@ -576,7 +576,7 @@ public class BookingServiceImpl implements BookingService {
 				headers.set("Content-Type", "application/json");
 				HttpEntity<Map<String, Set<String>>> entity = new HttpEntity<>(emailIdMap, headers);
 				RestTemplate restTemplate = new RestTemplate();
-				DataResponseDTO map = restTemplate.postForObject(uri, entity, DataResponseDTO.class);
+				DataResponseDto map = restTemplate.postForObject(uri, entity, DataResponseDto.class);
 				Map<String, Object> userNameAddressMap = (Map<String, Object>) map.getData().get("userInfo");
 				List<MyConsumerOrdersResponseDto> consumerOrders = new ArrayList<>();
 				for (ConsumerOrderEntity consumerOrderEntity : consumerOrderEntityList) {
@@ -615,7 +615,7 @@ public class BookingServiceImpl implements BookingService {
 
 	@Override
 	public CommonResponseDto fetchSingleProducerItem(HttpServletRequest request) {
-		DataResponseDTO response = new DataResponseDTO();
+		DataResponseDto response = new DataResponseDto();
 		Map<String, List<MyProducerOrdersResponseDto>> prodMap = new HashMap<>();
 		List<MyProducerOrdersResponseDto> producerOrderResponseDtoList = new ArrayList<>();
 		try {
