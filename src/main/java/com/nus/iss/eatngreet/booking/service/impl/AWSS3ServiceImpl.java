@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.nus.iss.eatngreet.booking.entity.ItemEntity;
 import com.nus.iss.eatngreet.booking.repository.ItemRepository;
-import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.DataResponseDTO;
 import com.nus.iss.eatngreet.booking.service.AWSS3Service;
 import com.nus.iss.eatngreet.booking.util.AWSUtils;
@@ -24,9 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class AWSS3ServiceImpl implements AWSS3Service {
-
-//	@Autowired
-//	private AmazonS3 s3client;
 
 	@Value("${aws.s3.bucketName}")
 	private String bucketName;
@@ -40,10 +37,10 @@ public class AWSS3ServiceImpl implements AWSS3Service {
 	@Autowired
 	ItemRepository itemRepository;
 
-	synchronized public CommonResponseDTO uploadItem(MultipartFile[] multipartFiles) {
+	public synchronized CommonResponseDto uploadItem(MultipartFile[] multipartFiles) {
 		log.info("uploadFile of AWSS3ServiceImpl");
-		CommonResponseDTO response = new CommonResponseDTO();
-		List<String> allowedExtensions = new ArrayList<String>();
+		CommonResponseDto response = new CommonResponseDto();
+		List<String> allowedExtensions = new ArrayList<>();
 		allowedExtensions.add("png");
 		allowedExtensions.add("jpg");
 		allowedExtensions.add("jpeg");
@@ -70,36 +67,21 @@ public class AWSS3ServiceImpl implements AWSS3Service {
 		}
 		return response;
 	}
-//
-//	public CommonResponseDTO deleteFile(String fileUrl) {
-//		log.info("deleteFileFromS3Bucket of AWSS3ServiceImpl");
-//		CommonResponseDTO response = new CommonResponseDTO();
-//		try {
-//			String fileName = fileUrl.substring(fileUrl.indexOf("longstay-media") + 15); // 15 is the length of string
-//			s3client.deleteObject(new DeleteObjectRequest(bucketName, fileName));
-//			ResponseUtil.prepareResponse(response, "Successfully deleted file from S3.", "SUCCESS",
-//					"Successfully deleted file from S3.", true);
-//		} catch (Exception e) {
-//			ResponseUtil.prepareResponse(response, "Failed to delete file.", "FAILURE", "Failed to delete file.",
-//					false);
-//		}
-//		return response;
-//	}
 
 	@Override
-	public CommonResponseDTO getAllImages() {
+	public CommonResponseDto getAllImages() {
 		DataResponseDTO response = new DataResponseDTO();
 		try {
 			Iterable<ItemEntity> allImageData = itemRepository.findAll();
 			List<Map<String, Object>> imagesURLList = new ArrayList<Map<String, Object>>();
 			for (ItemEntity image : allImageData) {
-				Map<String, Object> imageUrl = new HashMap<String, Object>();
+				Map<String, Object> imageUrl = new HashMap<>();
 				imageUrl.put("url", image.getImageUrl());
 				imageUrl.put("thumbnailUrl", image.getImageThumbnailUrl());
 				imageUrl.put("id", image.getItemId());
 				imagesURLList.add(imageUrl);
 			}
-			Map<String, Object> imageURLMap = new HashMap<String, Object>();
+			Map<String, Object> imageURLMap = new HashMap<>();
 			imageURLMap.put("imageURLs", imagesURLList);
 			response.setData(imageURLMap);
 			ResponseUtil.prepareResponse(response, "Images URL fetched successfully.", "SUCCESS",

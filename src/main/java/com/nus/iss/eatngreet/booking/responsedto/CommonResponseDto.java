@@ -9,14 +9,14 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @JsonInclude(Include.NON_NULL)
-public class CommonResponseDTO {
+public class CommonResponseDto {
 
-	public String status;
-	public String message;
-	public String info;
-	public boolean success;
+	private String status;
+	private String message;
+	private String info;
+	private boolean success;
 
-	public CommonResponseDTO(String status, String message, String info, boolean success) {
+	public CommonResponseDto(String status, String message, String info, boolean success) {
 		this.status = status;
 		this.message = message;
 		this.info = info;

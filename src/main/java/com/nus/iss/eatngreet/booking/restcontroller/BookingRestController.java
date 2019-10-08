@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.nus.iss.eatngreet.booking.requestdto.ConsumerOrderRequestDto;
 import com.nus.iss.eatngreet.booking.requestdto.ProducerOrderRequestDto;
-import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
 import com.nus.iss.eatngreet.booking.service.BookingService;
 import com.nus.iss.eatngreet.booking.util.ApplicationLogger;
 
@@ -27,7 +27,7 @@ public class BookingRestController {
 
 	// create an order by producer
 	@PostMapping("/producer-order")
-	public CommonResponseDTO produceOrder(HttpServletRequest request,
+	public CommonResponseDto produceOrder(HttpServletRequest request,
 			@RequestBody ProducerOrderRequestDto producerOrder) throws Exception {
 		log.info("In produceOrder() of BookingRestController with request: ");
 		ApplicationLogger.logInfoMessage("In produceOrder() of BookingRestController with request: " + producerOrder,
@@ -37,7 +37,7 @@ public class BookingRestController {
 
 	// create an order by consumer, i.e. consumer joins an existing order
 	@PostMapping("/consumer-order")
-	public CommonResponseDTO consumeOrder(HttpServletRequest request,
+	public CommonResponseDto consumeOrder(HttpServletRequest request,
 			@RequestBody ConsumerOrderRequestDto consumerOrder) throws Exception {
 		ApplicationLogger.logInfoMessage("In consumeOrder() of BookingRestController with request: " + consumerOrder,
 				BookingRestController.class);
@@ -45,14 +45,14 @@ public class BookingRestController {
 	}
 
 	@PostMapping("/all-items")
-	public CommonResponseDTO fetchProducerOrder() {
+	public CommonResponseDto fetchProducerOrder() {
 		ApplicationLogger.logInfoMessage("In fetchProducerOrder() of BookingRestController.",
 				BookingRestController.class);
 		return bookingService.fetchAllProducerOrders();
 	}
 
 	@PostMapping("/single-producer-item")
-	public CommonResponseDTO fetchSingleOrder(@RequestBody ConsumerOrderRequestDto consumerOrder) {
+	public CommonResponseDto fetchSingleOrder(@RequestBody ConsumerOrderRequestDto consumerOrder) {
 		ApplicationLogger.logInfoMessage("In fetchSingleOrder() of BookingRestController with request: " + consumerOrder,
 				BookingRestController.class);
 		return bookingService.fetchSingleItem(consumerOrder.getProducerOrderId());
@@ -60,7 +60,7 @@ public class BookingRestController {
 
 	// fetch all orders of a user as a consumer
 	@PostMapping("/user-consumer-item")
-	public CommonResponseDTO fetchSingleConsumerOrder(HttpServletRequest request) {
+	public CommonResponseDto fetchSingleConsumerOrder(HttpServletRequest request) {
 		ApplicationLogger.logInfoMessage(
 				"In fetchSingleConsumerOrder() of BookingRestController with http request param.",
 				BookingRestController.class);
@@ -69,7 +69,7 @@ public class BookingRestController {
 
 	// fetch all orders of a user as a producer
 	@PostMapping("/user-producer-item")
-	public CommonResponseDTO fetchSingleProducerOrder(HttpServletRequest request) {
+	public CommonResponseDto fetchSingleProducerOrder(HttpServletRequest request) {
 		ApplicationLogger.logInfoMessage(
 				"In fetchSingleProducerOrder() of BookingRestController with http request param.",
 				BookingRestController.class);

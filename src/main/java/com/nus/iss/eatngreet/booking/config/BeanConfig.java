@@ -16,7 +16,6 @@ public class BeanConfig implements WebMvcConfigurer {
 	@Override
 	public void addCorsMappings(CorsRegistry registry) {
 		registry.addMapping("/**").allowedOrigins("http://eat-n-greet1.azurewebsites.net");
-		registry.addMapping("/**").allowedOrigins("http://localhost:4200");
 	}
 	
 	@Bean

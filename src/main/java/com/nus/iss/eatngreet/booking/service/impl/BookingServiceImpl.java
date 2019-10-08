@@ -26,7 +26,7 @@ import com.nus.iss.eatngreet.booking.repository.ItemRepository;
 import com.nus.iss.eatngreet.booking.repository.ProducerOrderRepository;
 import com.nus.iss.eatngreet.booking.requestdto.ConsumerOrderRequestDto;
 import com.nus.iss.eatngreet.booking.requestdto.ProducerOrderRequestDto;
-import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.DataResponseDTO;
 import com.nus.iss.eatngreet.booking.responsedto.MyConsumerOrdersResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.MyProducerOrdersResponseDto;
@@ -62,9 +62,19 @@ public class BookingServiceImpl implements BookingService {
 	@Value("${eatngreet.paymentmicroservice.url.port}")
 	private String paymentMicroservicePort;
 
+	@Value("${eatngreet.notificationmicroservice.url.domain}")
+	private String notificationMicroserviceDomain;
+
+	@Value("${eatngreet.notificationmicroservice.url.port}")
+	private String notificationMicroservicePort;
+
+	@Value("${notificationmicroservice.email.auth.token}")
+	private String emailAuthToken;
+
+	@SuppressWarnings("unchecked")
 	@Override
-	public CommonResponseDTO createProducerOrder(HttpServletRequest request, ProducerOrderRequestDto producerOrder) {
-		CommonResponseDTO response = new CommonResponseDTO();
+	public CommonResponseDto createProducerOrder(HttpServletRequest request, ProducerOrderRequestDto producerOrder) {
+		CommonResponseDto response = new CommonResponseDto();
 		try {
 			ApplicationLogger.logInfoMessage(
 					"In createProducerOrder() of BookingServiceImpl with request: " + producerOrder,
@@ -75,12 +85,57 @@ public class BookingServiceImpl implements BookingService {
 				producerOrderRepository.save(producerOrderEntity);
 				ResponseUtil.prepareResponse(response, "Successfully created producer order.", Constants.SUCCESS_STRING,
 						"Successfully created producer order.", true);
+				List<ProducerOrderEntity> producerOrders = new ArrayList<>();
+				producerOrders.add(producerOrderEntity);
+				DataResponseDTO userDetailsResponse = getProducersNameAndAddress(producerOrders);
+				if (userDetailsResponse.isSuccess()) {
+					Map<String, Object> userResponse = userDetailsResponse.getData();
+					Map<String, Object> info = (Map<String, Object>) userResponse.get("userInfo");
+					Map<String, Object> producerDetails = (Map<String, Object>) info
+							.get(producerOrderEntity.getEmail());
+					String name = producerDetails.get("firstName") + " " + producerDetails.get("lastName");
+					CommonResponseDto notificationResponse = sendConfirmationEmail(producerOrderEntity, name);
+					if (notificationResponse.isSuccess()) {
+						ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+								Constants.SUCCESS_STRING,
+								"Successfully created producer order and successfully sent the required mail.", true);
+					} else {
+						ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+								Constants.SUCCESS_STRING,
+								"Successfully created producer order but notification mail was not sent. Reason:"
+										+ notificationResponse.getInfo(),
+								true);
+					}
+
+				} else {
+					ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+							Constants.SUCCESS_STRING,
+							"Some problem occurred in fetching producers name and address for sending the email, hence email for this was not sent. Info: "
+									+ userDetailsResponse.getInfo(),
+							false);
+				}
 			}
 		} catch (Exception ex) {
 			ResponseUtil.prepareResponse(response, "Please try again later.", Constants.FAILURE_STRING,
 					"Following exception occurred while trying to create producer order: " + ex.getMessage(), false);
 		}
 		return response;
+	}
+
+	private CommonResponseDto sendConfirmationEmail(ProducerOrderEntity order, String name) {
+		Map<String, Object> notificationReqMap = new HashMap<>();
+		notificationReqMap.put("name", name);
+		notificationReqMap.put("servingDate", order.getServingDate());
+		notificationReqMap.put("count", order.getMaxPeopleCount());
+		notificationReqMap.put("email", order.getEmail());
+		final String uri = notificationMicroserviceDomain + ":" + notificationMicroservicePort
+				+ "/eatngreet/notificationms/notify/confirm-posting-meal";
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Content-Type", "application/json");
+		headers.set("Authorization", "Bearer " + emailAuthToken);
+		HttpEntity<Map<String, Object>> entity = new HttpEntity<>(notificationReqMap, headers);
+		RestTemplate restTemplate = new RestTemplate();
+		return restTemplate.postForObject(uri, entity, CommonResponseDto.class);
 	}
 
 	private ProducerOrderEntity createProducerOrderEntity(String consumerEmailId,
@@ -120,7 +175,7 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	private boolean checkProducerOrderRequestObj(ProducerOrderRequestDto producerOrder,
-			CommonResponseDTO commonResponseDTO) {
+			CommonResponseDto commonResponseDTO) {
 		if (Util.isListEmpty(producerOrder.getItemList())) {
 			ResponseUtil.prepareResponse(commonResponseDTO, "Select one or more items to proceed.",
 					Constants.FAILURE_STRING, "No Items Selected ", false);
@@ -151,8 +206,8 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Override
-	public CommonResponseDTO createConsumerOrder(HttpServletRequest request, ConsumerOrderRequestDto consumerOrder) {
-		CommonResponseDTO response = new CommonResponseDTO();
+	public CommonResponseDto createConsumerOrder(HttpServletRequest request, ConsumerOrderRequestDto consumerOrder) {
+		CommonResponseDto response = new CommonResponseDto();
 		try {
 			ApplicationLogger.logInfoMessage("Starting BookingServiceImpl for createConsumerOrder",
 					BookingServiceImpl.class);
@@ -161,11 +216,10 @@ public class BookingServiceImpl implements BookingService {
 				ConsumerOrderEntity consumerOrderEntity = createConsumerOrderEntity(consumerEmailId, consumerOrder,
 						response);
 				if (consumerOrderEntity != null) {
-					String producerEmailId = consumerOrderEntity.getProducerOrderEntity().getEmail();
 					Float amount = consumerOrderEntity.getProducerOrderEntity().getPrice();
 					Map<String, Object> txnReqMap = new HashMap<>();
 					txnReqMap.put("consumerEmailId", consumerEmailId);
-					txnReqMap.put("producerEmailId", producerEmailId);
+					txnReqMap.put("producerEmailId", consumerOrderEntity.getProducerOrderEntity().getEmail());
 					txnReqMap.put("producerOrderId", consumerOrderEntity.getProducerOrderEntity().getProducerOrderId());
 					txnReqMap.put("amount", amount);
 					final String uri = paymentMicroserviceDomain + ":" + paymentMicroservicePort
@@ -174,12 +228,25 @@ public class BookingServiceImpl implements BookingService {
 					headers.set("Content-Type", "application/json");
 					HttpEntity<Map<String, Object>> entity = new HttpEntity<>(txnReqMap, headers);
 					RestTemplate restTemplate = new RestTemplate();
-					CommonResponseDTO paymentResponse = restTemplate.postForObject(uri, entity,
-							CommonResponseDTO.class);
+					CommonResponseDto paymentResponse = restTemplate.postForObject(uri, entity,
+							CommonResponseDto.class);
 					if (paymentResponse != null && paymentResponse.isSuccess()) {
 						consumerOrderRepository.save(consumerOrderEntity);
 						ResponseUtil.prepareResponse(response, "Successfully joined the meal.",
 								Constants.SUCCESS_STRING, "Customer has successfully joined the meal.", true);
+						CommonResponseDto notificationResponse = sendJoiningEmail(consumerOrderEntity);
+						if (notificationResponse.isSuccess()) {
+							ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+									Constants.SUCCESS_STRING,
+									"Successfully created producer order and successfully sent the required mail.",
+									true);
+						} else {
+							ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+									Constants.SUCCESS_STRING,
+									"Successfully created producer order but notification mail was not sent. Reason:"
+											+ notificationResponse.getInfo(),
+									true);
+						}
 					} else if (paymentResponse == null) {
 						ResponseUtil.prepareResponse(response, "Couldn't process payment. Please try again later.",
 								Constants.FAILURE_STRING, "Couldn't process payment. Null returned from pay now api.",
@@ -203,8 +270,62 @@ public class BookingServiceImpl implements BookingService {
 		return response;
 	}
 
+	@SuppressWarnings("unchecked")
+	private CommonResponseDto sendJoiningEmail(ConsumerOrderEntity order) {
+		CommonResponseDto response = new CommonResponseDto();
+		Map<String, Object> notificationReqMap = new HashMap<>();
+		Set<String> emailIds = new HashSet<>();
+		emailIds.add(order.getEmail());
+		emailIds.add(order.getProducerOrderEntity().getEmail());
+		Map<String, Set<String>> emailIdMap = new HashMap<>();
+		emailIdMap.put("emailIds", emailIds);
+		final String uri = userMicroserviceDomain + ":" + userMicroservicePort
+				+ "/eatngreet/userms/user/get-users-info";
+		HttpHeaders headers = new HttpHeaders();
+		headers.set("Content-Type", "application/json");
+		HttpEntity<Map<String, Set<String>>> userInfoReqEntity = new HttpEntity<>(emailIdMap, headers);
+		RestTemplate restTemplate = new RestTemplate();
+		DataResponseDTO userResponse = restTemplate.postForObject(uri, userInfoReqEntity, DataResponseDTO.class);
+		if (userResponse.isSuccess()) {
+			Map<String, Object> details = (Map<String, Object>) userResponse.getData().get("userInfo");
+			Map<String, Object> hostDetails = (Map<String, Object>) details
+					.get(order.getProducerOrderEntity().getEmail());
+			Map<String, Object> guestDetails = (Map<String, Object>) details.get(order.getEmail());
+			notificationReqMap.put("hostName", hostDetails.get("firstName") + " " + hostDetails.get("lastName"));
+			notificationReqMap.put("guestName", guestDetails.get("firstName") + " " + guestDetails.get("lastName"));
+			notificationReqMap.put("hostEmailId", order.getProducerOrderEntity().getEmail());
+			notificationReqMap.put("guestEmailId", order.getEmail());
+			notificationReqMap.put("servingDate", order.getProducerOrderEntity().getServingDate());
+			notificationReqMap.put("maxCount", order.getProducerOrderEntity().getMaxPeopleCount());
+			notificationReqMap.put("guestCount", order.getProducerOrderEntity().getActualPeopleCount());
+			final String notificationUri = notificationMicroserviceDomain + ":" + notificationMicroservicePort
+					+ "/eatngreet/notificationms/notify/confirm-joining-meal";
+			headers = new HttpHeaders();
+			headers.set("Content-Type", "application/json");
+			headers.set("Authorization", "Bearer " + emailAuthToken);
+			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(notificationReqMap, headers);
+			restTemplate = new RestTemplate();
+			CommonResponseDto notificationResponse = restTemplate.postForObject(notificationUri, entity, CommonResponseDto.class);
+			if(notificationResponse.isSuccess()) {
+
+				ResponseUtil.prepareResponse(response, "Mail sent successfully.", Constants.SUCCESS_STRING,
+						"Mail sent successfully.", true);
+			} else {
+				ResponseUtil.prepareResponse(response, "Mail was not sent.", Constants.FAILURE_STRING,
+						"Mail was not sent. Reason: " + notificationResponse.getInfo(), false);
+			}
+		} else {
+			ResponseUtil.prepareResponse(response, "Unable to fetch user info.", Constants.FAILURE_STRING,
+					"Unable to fetch user info. Reason: " + userResponse.getInfo(), false);
+		}
+		return response;
+
+		// get user details
+
+	}
+
 	private ConsumerOrderEntity createConsumerOrderEntity(String consumerEmailId, ConsumerOrderRequestDto consumerOrder,
-			CommonResponseDTO commonResponseDTO) {
+			CommonResponseDto commonResponseDTO) {
 		ConsumerOrderEntity consumerOrderEntity = null;
 		List<ProducerOrderEntity> producerOrderEntityList = producerOrderRepository
 				.findByProducerOrderId(consumerOrder.getProducerOrderId());
@@ -269,6 +390,7 @@ public class BookingServiceImpl implements BookingService {
 		return response;
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private Map getRelevantData(List<ProducerOrderResponseDto> orders) {
 		Map<String, Object> data = new HashMap<>();
 		List<ProducerOrdersListingResponseDto> producerOrdersList = new ArrayList<>();
@@ -389,7 +511,7 @@ public class BookingServiceImpl implements BookingService {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CommonResponseDTO fetchSingleItem(Long producerOrderId) {
+	public CommonResponseDto fetchSingleItem(Long producerOrderId) {
 		ApplicationLogger.logInfoMessage("Starting BookingServiceImpl for fetching single producer order",
 				BookingServiceImpl.class);
 		DataResponseDTO response = new DataResponseDTO();
@@ -431,6 +553,7 @@ public class BookingServiceImpl implements BookingService {
 		return response;
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public DataResponseDTO fetchSingleConsumerItem(HttpServletRequest request) {
 		DataResponseDTO response = new DataResponseDTO();
@@ -491,7 +614,7 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Override
-	public CommonResponseDTO fetchSingleProducerItem(HttpServletRequest request) {
+	public CommonResponseDto fetchSingleProducerItem(HttpServletRequest request) {
 		DataResponseDTO response = new DataResponseDTO();
 		Map<String, List<MyProducerOrdersResponseDto>> prodMap = new HashMap<>();
 		List<MyProducerOrdersResponseDto> producerOrderResponseDtoList = new ArrayList<>();

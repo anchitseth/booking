@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDTO;
+import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
 import com.nus.iss.eatngreet.booking.service.AWSS3Service;
 
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +23,7 @@ public class AWSS3RestController {
     private AWSS3Service awsS3Service;
 
     @PostMapping("/upload-item")
-    public CommonResponseDTO uploadItem(@RequestParam(value = "images") MultipartFile[] images) {
+    public CommonResponseDto uploadItem(@RequestParam(value = "images") MultipartFile[] images) {
     	log.info("uploadFile() of S3BucketRestController");
         return awsS3Service.uploadItem(images);
     }
