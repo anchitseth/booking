@@ -2,6 +2,8 @@ package com.nus.iss.eatngreet.booking.restcontroller;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,15 +11,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nus.iss.eatngreet.booking.requestdto.ConsumerOrderRequestDto;
-import com.nus.iss.eatngreet.booking.requestdto.ProducerOrderRequestDto;
+import com.nus.iss.eatngreet.booking.requestdto.CreateMealRequestDto;
+import com.nus.iss.eatngreet.booking.requestdto.GuestJoiningRequestDto;
 import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
+import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
 import com.nus.iss.eatngreet.booking.service.BookingService;
-import com.nus.iss.eatngreet.booking.util.ApplicationLogger;
 
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @RestController
 @RequestMapping("booking")
 public class BookingRestController {
@@ -25,60 +24,48 @@ public class BookingRestController {
 	@Autowired
 	BookingService bookingService;
 
-	// create an order by producer
+	private static final Logger logger = LoggerFactory.getLogger(BookingRestController.class);
+
 	@PostMapping("/producer-order")
-	public CommonResponseDto produceOrder(HttpServletRequest request,
-			@RequestBody ProducerOrderRequestDto producerOrder) throws Exception {
-		log.info("In produceOrder() of BookingRestController with request: ");
-		ApplicationLogger.logInfoMessage("In produceOrder() of BookingRestController with request: " + producerOrder,
-				BookingRestController.class);
-		return bookingService.createProducerOrder(request, producerOrder);
+	public CommonResponseDto createMeal(HttpServletRequest request,
+			@RequestBody CreateMealRequestDto producerOrder) {
+		logger.info("In produceOrder() of BookingRestController with request: {}.", producerOrder);
+		return bookingService.createMeal(request, producerOrder);
 	}
 
-	// create an order by consumer, i.e. consumer joins an existing order
 	@PostMapping("/consumer-order")
-	public CommonResponseDto consumeOrder(HttpServletRequest request,
-			@RequestBody ConsumerOrderRequestDto consumerOrder) throws Exception {
-		ApplicationLogger.logInfoMessage("In consumeOrder() of BookingRestController with request: " + consumerOrder,
-				BookingRestController.class);
-		return bookingService.createConsumerOrder(request, consumerOrder);
+	public CommonResponseDto joinMeal(HttpServletRequest request, @RequestBody GuestJoiningRequestDto consumerOrder) {
+		logger.info("In consumeOrder() of BookingRestController with request: {}.", consumerOrder);
+		return bookingService.joinMeal(request, consumerOrder);
 	}
 
 	@PostMapping("/all-items")
-	public CommonResponseDto fetchProducerOrder() {
-		ApplicationLogger.logInfoMessage("In fetchProducerOrder() of BookingRestController.",
-				BookingRestController.class);
-		return bookingService.fetchAllProducerOrders();
+	public DataResponseDto fetchAllMeals() {
+		logger.info("In fetchProducerOrder() of BookingRestController.");
+		return bookingService.fetchAllActiveMeals();
 	}
 
 	@PostMapping("/single-producer-item")
-	public CommonResponseDto fetchSingleOrder(@RequestBody ConsumerOrderRequestDto consumerOrder) {
-		ApplicationLogger.logInfoMessage("In fetchSingleOrder() of BookingRestController with request: " + consumerOrder,
-				BookingRestController.class);
-		return bookingService.fetchSingleItem(consumerOrder.getProducerOrderId());
+	public DataResponseDto fetchSingleMeal(@RequestBody GuestJoiningRequestDto consumerOrder) {
+		logger.info("In fetchSingleOrder() of BookingRestController with request: {}", consumerOrder);
+		return bookingService.fetchSingleMeal(consumerOrder.getProducerOrderId());
 	}
 
-	// fetch all orders of a user as a consumer
 	@PostMapping("/user-consumer-item")
-	public CommonResponseDto fetchSingleConsumerOrder(HttpServletRequest request) {
-		ApplicationLogger.logInfoMessage(
-				"In fetchSingleConsumerOrder() of BookingRestController with http request param.",
-				BookingRestController.class);
-		return bookingService.fetchSingleConsumerItem(request);
+	public DataResponseDto fetchAllJoinedMeals(HttpServletRequest request) {
+		logger.info("In fetchSingleConsumerOrder() of BookingRestController.");
+		return bookingService.fetchAllJoinedMealsOfUser(request);
 	}
 
-	// fetch all orders of a user as a producer
 	@PostMapping("/user-producer-item")
-	public CommonResponseDto fetchSingleProducerOrder(HttpServletRequest request) {
-		ApplicationLogger.logInfoMessage(
-				"In fetchSingleProducerOrder() of BookingRestController with http request param.",
-				BookingRestController.class);
-		return bookingService.fetchSingleProducerItem(request);
+	public DataResponseDto fetchAllHostedMeals(HttpServletRequest request) {
+		logger.info("In fetchSingleProducerOrder() of BookingRestController.");
+		return bookingService.fetchAllHostedMealsOfUser(request);
 	}
 
 	@GetMapping("/health-check")
 	public String healthCheck() {
-		ApplicationLogger.logInfoMessage("In healthCheck() of BookingRestController.", BookingRestController.class);
+		logger.info("In healthCheck() of BookingRestController.");
 		return "Booking microservice is up and running.";
 	}
 }

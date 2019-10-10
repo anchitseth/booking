@@ -14,19 +14,6 @@ public class Util {
 		return (str == null || str.trim().length() == 0);
 	}
 
-	public static boolean isStringOnlyAlphabets(String str) {
-		return ((!str.equals("")) && (str != null) && (str.matches("^[a-zA-Z]*$")));
-	}
-
-	public static boolean isNumeric(String strNum) {
-		try {
-			Double.parseDouble(strNum);
-		} catch (NumberFormatException | NullPointerException nfe) {
-			return false;
-		}
-		return true;
-	}
-
 	public static boolean isListEmpty(List<?> list) {
 		boolean isEmpty = true;
 		if (list != null && !list.isEmpty()) {
@@ -68,7 +55,7 @@ public class Util {
 	}
 
 	public static String getDecryptedEmail(HttpServletRequest request) {
-		String authToken = request.getHeader("Authorization").substring("Basic".length()).trim();
+		String authToken = request.getHeader(Constants.AUTHORIZATION_HEADER_NAME).substring("Basic".length()).trim();
 		return new String(Base64.getDecoder().decode(authToken)).split(":")[0];
 	}
 	

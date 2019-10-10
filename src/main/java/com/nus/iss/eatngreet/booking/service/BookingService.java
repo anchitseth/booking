@@ -2,22 +2,23 @@ package com.nus.iss.eatngreet.booking.service;
 
 import javax.servlet.http.HttpServletRequest;
 
-import com.nus.iss.eatngreet.booking.requestdto.ConsumerOrderRequestDto;
-import com.nus.iss.eatngreet.booking.requestdto.ProducerOrderRequestDto;
+import com.nus.iss.eatngreet.booking.requestdto.CreateMealRequestDto;
+import com.nus.iss.eatngreet.booking.requestdto.GuestJoiningRequestDto;
 import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
+import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
 
 public interface BookingService {
 
-	public CommonResponseDto createProducerOrder(HttpServletRequest request, ProducerOrderRequestDto producerOrder);
+	public CommonResponseDto createMeal(HttpServletRequest request, CreateMealRequestDto producerOrder);
 
-	public CommonResponseDto createConsumerOrder(HttpServletRequest request, ConsumerOrderRequestDto consumerOrder);
+	public CommonResponseDto joinMeal(HttpServletRequest request, GuestJoiningRequestDto consumerOrder);
 
-	public CommonResponseDto fetchAllProducerOrders();
+	public DataResponseDto fetchAllActiveMeals();
 
-	public CommonResponseDto fetchSingleItem(Long producerOrderId);
+	public DataResponseDto fetchSingleMeal(Long producerOrderId);
 
-	public CommonResponseDto fetchSingleConsumerItem(HttpServletRequest request);
+	public DataResponseDto fetchAllJoinedMealsOfUser(HttpServletRequest request);
 
-	public CommonResponseDto fetchSingleProducerItem(HttpServletRequest request);
+	public DataResponseDto fetchAllHostedMealsOfUser(HttpServletRequest request);
 
 }

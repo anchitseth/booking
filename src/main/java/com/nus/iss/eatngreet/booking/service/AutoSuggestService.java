@@ -4,7 +4,7 @@ import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
 
 public interface AutoSuggestService {
 	
-	public DataResponseDto getItems(String itemName);
+	public DataResponseDto getMatchingItems(String itemName);
 
 	public DataResponseDto getAllItems();
 

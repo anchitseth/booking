@@ -9,7 +9,7 @@ import com.nus.iss.eatngreet.booking.entity.ItemEntity;
 import lombok.Data;
 
 @Data
-public class ProducerOrderResponseDto {
+public class HostOrderResponseDto {
 	private Long producerOrderId;
 	private String firstName;
 	private String lastName;

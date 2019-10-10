@@ -10,30 +10,32 @@ import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import com.nus.iss.eatngreet.booking.entity.ConsumerOrderEntity;
-import com.nus.iss.eatngreet.booking.entity.ItemEntity;
 import com.nus.iss.eatngreet.booking.entity.ProducerOrderEntity;
+import com.nus.iss.eatngreet.booking.entity.ItemEntity;
 import com.nus.iss.eatngreet.booking.repository.ConsumerOrderRepository;
 import com.nus.iss.eatngreet.booking.repository.ItemRepository;
 import com.nus.iss.eatngreet.booking.repository.ProducerOrderRepository;
-import com.nus.iss.eatngreet.booking.requestdto.ConsumerOrderRequestDto;
-import com.nus.iss.eatngreet.booking.requestdto.ProducerOrderRequestDto;
+import com.nus.iss.eatngreet.booking.requestdto.CreateMealRequestDto;
+import com.nus.iss.eatngreet.booking.requestdto.GuestJoiningRequestDto;
 import com.nus.iss.eatngreet.booking.responsedto.CommonResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.DataResponseDto;
+import com.nus.iss.eatngreet.booking.responsedto.HostOrderResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.MyConsumerOrdersResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.MyProducerOrdersResponseDto;
-import com.nus.iss.eatngreet.booking.responsedto.ProducerOrderResponseDto;
 import com.nus.iss.eatngreet.booking.responsedto.ProducerOrdersListingResponseDto;
 import com.nus.iss.eatngreet.booking.service.BookingService;
-import com.nus.iss.eatngreet.booking.util.ApplicationLogger;
 import com.nus.iss.eatngreet.booking.util.Constants;
 import com.nus.iss.eatngreet.booking.util.ResponseUtil;
 import com.nus.iss.eatngreet.booking.util.Util;
@@ -71,75 +73,81 @@ public class BookingServiceImpl implements BookingService {
 	@Value("${notificationmicroservice.email.auth.token}")
 	private String emailAuthToken;
 
+	private static final Logger logger = LoggerFactory.getLogger(BookingServiceImpl.class);
+
 	@SuppressWarnings("unchecked")
 	@Override
-	public CommonResponseDto createProducerOrder(HttpServletRequest request, ProducerOrderRequestDto producerOrder) {
+	public CommonResponseDto createMeal(HttpServletRequest request, CreateMealRequestDto meal) {
 		CommonResponseDto response = new CommonResponseDto();
 		try {
-			ApplicationLogger.logInfoMessage(
-					"In createProducerOrder() of BookingServiceImpl with request: " + producerOrder,
-					BookingServiceImpl.class);
-			if (checkProducerOrderRequestObj(producerOrder, response)) {
-				ProducerOrderEntity producerOrderEntity = createProducerOrderEntity(Util.getDecryptedEmail(request),
-						producerOrder);
+			logger.info("In createMeal() of BookingServiceImpl with request: {}", meal);
+			if (checkMealObj(meal, response)) {
+				ProducerOrderEntity producerOrderEntity = createProducerOrderEntity(Util.getDecryptedEmail(request), meal);
 				producerOrderRepository.save(producerOrderEntity);
-				ResponseUtil.prepareResponse(response, "Successfully created producer order.", Constants.SUCCESS_STRING,
-						"Successfully created producer order.", true);
+				ResponseUtil.prepareResponse(response, Constants.MEAL_POSTING_SUCCESS_MSG, Constants.SUCCESS_STRING,
+						Constants.MEAL_POSTING_SUCCESS_MSG, true);
 				List<ProducerOrderEntity> producerOrders = new ArrayList<>();
 				producerOrders.add(producerOrderEntity);
-				DataResponseDto userDetailsResponse = getProducersNameAndAddress(producerOrders);
+				DataResponseDto userDetailsResponse = getHostNameAndAddress(producerOrders);
 				if (userDetailsResponse.isSuccess()) {
+					logger.info("Successfully fetched user details required for sending the notification mail.");
 					Map<String, Object> userResponse = userDetailsResponse.getData();
-					Map<String, Object> info = (Map<String, Object>) userResponse.get("userInfo");
+					Map<String, Object> info = (Map<String, Object>) userResponse.get(Constants.USER_INFO_KEY);
 					Map<String, Object> producerDetails = (Map<String, Object>) info
 							.get(producerOrderEntity.getEmail());
-					String name = producerDetails.get("firstName") + " " + producerDetails.get("lastName");
+					String name = producerDetails.get(Constants.FIRST_NAME_KEY) + " " + producerDetails.get(Constants.LAST_NAME_KEY);
 					CommonResponseDto notificationResponse = sendConfirmationEmail(producerOrderEntity, name);
 					if (notificationResponse.isSuccess()) {
-						ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+						logger.info("Notification mail sent successfully.");
+						ResponseUtil.prepareResponse(response, Constants.MEAL_POSTING_SUCCESS_MSG,
 								Constants.SUCCESS_STRING,
-								"Successfully created producer order and successfully sent the required mail.", true);
+								"Successfully created meal and successfully sent the required mail.", true);
 					} else {
-						ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+						logger.info("Notification mail was not sent. Reason: {}", notificationResponse.getInfo());
+						ResponseUtil.prepareResponse(response, Constants.MEAL_POSTING_SUCCESS_MSG,
 								Constants.SUCCESS_STRING,
-								"Successfully created producer order but notification mail was not sent. Reason:"
+								"Successfully created meal but notification mail was not sent. Reason:"
 										+ notificationResponse.getInfo(),
 								true);
 					}
-
 				} else {
-					ResponseUtil.prepareResponse(response, "Successfully created producer order.",
-							Constants.SUCCESS_STRING,
+					logger.error(
+							"UnablE to fetch user details that are required for sending the notification mail. Reason: {}",
+							userDetailsResponse.getInfo());
+					ResponseUtil.prepareResponse(response, Constants.MEAL_POSTING_SUCCESS_MSG, Constants.SUCCESS_STRING,
 							"Some problem occurred in fetching producers name and address for sending the email, hence email for this was not sent. Info: "
 									+ userDetailsResponse.getInfo(),
-							false);
+							true);
 				}
+			} else {
+				logger.info("Validations failed for request object: {}", meal);
 			}
 		} catch (Exception ex) {
-			ResponseUtil.prepareResponse(response, "Please try again later.", Constants.FAILURE_STRING,
+			logger.error("Exception occurred while trying to create new meal. Exception message: {}", ex.getMessage());
+			ResponseUtil.prepareResponse(response, Constants.TRY_AGAIN_MSG_FOR_USERS, Constants.FAILURE_STRING,
 					"Following exception occurred while trying to create producer order: " + ex.getMessage(), false);
 		}
 		return response;
 	}
 
 	private CommonResponseDto sendConfirmationEmail(ProducerOrderEntity order, String name) {
+		logger.info("sendConfirmationEmail() of BookingServiceImpl. Request: {}, name: {}", order, name);
 		Map<String, Object> notificationReqMap = new HashMap<>();
 		notificationReqMap.put("name", name);
 		notificationReqMap.put("servingDate", order.getServingDate());
 		notificationReqMap.put("count", order.getMaxPeopleCount());
 		notificationReqMap.put("email", order.getEmail());
 		final String uri = notificationMicroserviceDomain + ":" + notificationMicroservicePort
-				+ "/eatngreet/notificationms/notify/confirm-posting-meal";
+				+ Constants.NEW_MEAL_NOTIFICATION_API_URL;
 		HttpHeaders headers = new HttpHeaders();
-		headers.set("Content-Type", "application/json");
-		headers.set("Authorization", "Bearer " + emailAuthToken);
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.set(Constants.AUTHORIZATION_HEADER_NAME, "Bearer " + emailAuthToken);
 		HttpEntity<Map<String, Object>> entity = new HttpEntity<>(notificationReqMap, headers);
 		RestTemplate restTemplate = new RestTemplate();
 		return restTemplate.postForObject(uri, entity, CommonResponseDto.class);
 	}
 
-	private ProducerOrderEntity createProducerOrderEntity(String consumerEmailId,
-			ProducerOrderRequestDto producerOrder) {
+	private ProducerOrderEntity createProducerOrderEntity(String consumerEmailId, CreateMealRequestDto producerOrder) {
 		ProducerOrderEntity producerOrderEntity = new ProducerOrderEntity();
 		if (Util.isValidEmail(consumerEmailId)) {
 			producerOrderEntity.setEmail(consumerEmailId);
@@ -161,7 +169,7 @@ public class BookingServiceImpl implements BookingService {
 		return producerOrderEntity;
 	}
 
-	private Set<ItemEntity> getItems(ProducerOrderRequestDto producerOrder) {
+	private Set<ItemEntity> getItems(CreateMealRequestDto producerOrder) {
 		Set<ItemEntity> itemSet = new HashSet<>();
 		for (String itemName : producerOrder.getItemList()) {
 			if (!Util.isStringEmpty(itemName)) {
@@ -174,8 +182,7 @@ public class BookingServiceImpl implements BookingService {
 		return itemSet;
 	}
 
-	private boolean checkProducerOrderRequestObj(ProducerOrderRequestDto producerOrder,
-			CommonResponseDto commonResponseDTO) {
+	private boolean checkMealObj(CreateMealRequestDto producerOrder, CommonResponseDto commonResponseDTO) {
 		if (Util.isListEmpty(producerOrder.getItemList())) {
 			ResponseUtil.prepareResponse(commonResponseDTO, "Select one or more items to proceed.",
 					Constants.FAILURE_STRING, "No Items Selected ", false);
@@ -206,52 +213,56 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Override
-	public CommonResponseDto createConsumerOrder(HttpServletRequest request, ConsumerOrderRequestDto consumerOrder) {
+	public CommonResponseDto joinMeal(HttpServletRequest request, GuestJoiningRequestDto guestOrder) {
+		logger.info("joinMeal() of BookingServiceImpl. Request: {}.", guestOrder);
 		CommonResponseDto response = new CommonResponseDto();
 		try {
-			ApplicationLogger.logInfoMessage("Starting BookingServiceImpl for createConsumerOrder",
-					BookingServiceImpl.class);
-			if (!Util.isLongValueEmpty(consumerOrder.getProducerOrderId())) {
-				String consumerEmailId = Util.getDecryptedEmail(request);
-				ConsumerOrderEntity consumerOrderEntity = createConsumerOrderEntity(consumerEmailId, consumerOrder,
-						response);
-				if (consumerOrderEntity != null) {
-					Float amount = consumerOrderEntity.getProducerOrderEntity().getPrice();
+			if (!Util.isLongValueEmpty(guestOrder.getProducerOrderId())) {
+				String guestEmailId = Util.getDecryptedEmail(request);
+				logger.info("Decrypted guest email id: {}.", guestEmailId);
+				ConsumerOrderEntity guestOrderEntity = createGuestOrderEntity(guestEmailId, guestOrder, response);
+				if (guestOrderEntity != null) {
+					Float amount = guestOrderEntity.getProducerOrderEntity().getPrice();
 					Map<String, Object> txnReqMap = new HashMap<>();
-					txnReqMap.put("consumerEmailId", consumerEmailId);
-					txnReqMap.put("producerEmailId", consumerOrderEntity.getProducerOrderEntity().getEmail());
-					txnReqMap.put("producerOrderId", consumerOrderEntity.getProducerOrderEntity().getProducerOrderId());
+					txnReqMap.put("consumerEmailId", guestEmailId);
+					txnReqMap.put("producerEmailId", guestOrderEntity.getProducerOrderEntity().getEmail());
+					txnReqMap.put("producerOrderId", guestOrderEntity.getProducerOrderEntity().getProducerOrderId());
 					txnReqMap.put("amount", amount);
 					final String uri = paymentMicroserviceDomain + ":" + paymentMicroservicePort
-							+ "/eatngreet/paymentms/pay/now";
+							+ Constants.PAY_FOR_MEAL_API_URL;
 					HttpHeaders headers = new HttpHeaders();
-					headers.set("Content-Type", "application/json");
+					headers.setContentType(MediaType.APPLICATION_JSON);
 					HttpEntity<Map<String, Object>> entity = new HttpEntity<>(txnReqMap, headers);
 					RestTemplate restTemplate = new RestTemplate();
 					CommonResponseDto paymentResponse = restTemplate.postForObject(uri, entity,
 							CommonResponseDto.class);
 					if (paymentResponse != null && paymentResponse.isSuccess()) {
-						consumerOrderRepository.save(consumerOrderEntity);
+						logger.info("Successfully processed payment.");
+						consumerOrderRepository.save(guestOrderEntity);
 						ResponseUtil.prepareResponse(response, "Successfully joined the meal.",
 								Constants.SUCCESS_STRING, "Customer has successfully joined the meal.", true);
-						CommonResponseDto notificationResponse = sendJoiningEmail(consumerOrderEntity);
+						CommonResponseDto notificationResponse = sendJoiningEmail(guestOrderEntity);
 						if (notificationResponse.isSuccess()) {
-							ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+							logger.info("Successfully sent notification mail.");
+							ResponseUtil.prepareResponse(response, "Successfully joined meal.",
 									Constants.SUCCESS_STRING,
-									"Successfully created producer order and successfully sent the required mail.",
-									true);
+									"Successfully joined meal and successfully sent the required mail.", true);
 						} else {
-							ResponseUtil.prepareResponse(response, "Successfully created producer order.",
+							logger.error("Notification mail couldn't be sent. Response msg: {}.",
+									notificationResponse.getInfo());
+							ResponseUtil.prepareResponse(response, "Successfully joined meal.",
 									Constants.SUCCESS_STRING,
-									"Successfully created producer order but notification mail was not sent. Reason:"
+									"Successfully joined meal but notification mail was not sent. Reason:"
 											+ notificationResponse.getInfo(),
 									true);
 						}
 					} else if (paymentResponse == null) {
+						logger.error("Null response received from pay/now api.");
 						ResponseUtil.prepareResponse(response, "Couldn't process payment. Please try again later.",
 								Constants.FAILURE_STRING, "Couldn't process payment. Null returned from pay now api.",
 								false);
 					} else {
+						logger.error("Payment couldn't be processed. Response msg: {}.", paymentResponse.getInfo());
 						ResponseUtil.prepareResponse(response,
 								"Couldn't process payment. " + paymentResponse.getMessage(), Constants.FAILURE_STRING,
 								"Couldn't process payment (as per the response from Payment Microservice). Response: "
@@ -260,11 +271,14 @@ public class BookingServiceImpl implements BookingService {
 					}
 				}
 			} else {
-				ResponseUtil.prepareResponse(response, "Producer order Id missing", Constants.FAILURE_STRING,
-						"Producer order Id missing", false);
+				logger.error("Meal ID is missing in the request.");
+				ResponseUtil.prepareResponse(response, "Meal ID missing.", Constants.FAILURE_STRING,
+						"Meal ID not present in the request.", false);
 			}
 		} catch (Exception ex) {
-			ResponseUtil.prepareResponse(response, "Not Registered Successfully", Constants.FAILURE_STRING,
+			logger.error("Exception occurred while trying to add guest to a meal. Exception message: {}.",
+					ex.getMessage());
+			ResponseUtil.prepareResponse(response, Constants.TRY_AGAIN_MSG_FOR_USERS, Constants.FAILURE_STRING,
 					"Following exception occurred " + ex.getMessage(), false);
 		}
 		return response;
@@ -272,27 +286,27 @@ public class BookingServiceImpl implements BookingService {
 
 	@SuppressWarnings("unchecked")
 	private CommonResponseDto sendJoiningEmail(ConsumerOrderEntity order) {
+		logger.info("sendJoiningEmail() of BookingServiceImpl. Request obj: {}", order);
 		CommonResponseDto response = new CommonResponseDto();
 		Map<String, Object> notificationReqMap = new HashMap<>();
 		Set<String> emailIds = new HashSet<>();
 		emailIds.add(order.getEmail());
 		emailIds.add(order.getProducerOrderEntity().getEmail());
 		Map<String, Set<String>> emailIdMap = new HashMap<>();
-		emailIdMap.put("emailIds", emailIds);
-		final String uri = userMicroserviceDomain + ":" + userMicroservicePort
-				+ "/eatngreet/userms/user/get-users-info";
+		emailIdMap.put(Constants.EMAIL_IDS_KEY, emailIds);
+		final String uri = userMicroserviceDomain + ":" + userMicroservicePort + Constants.GET_USERS_INFO_API_URL;
 		HttpHeaders headers = new HttpHeaders();
-		headers.set("Content-Type", "application/json");
+		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<Map<String, Set<String>>> userInfoReqEntity = new HttpEntity<>(emailIdMap, headers);
 		RestTemplate restTemplate = new RestTemplate();
 		DataResponseDto userResponse = restTemplate.postForObject(uri, userInfoReqEntity, DataResponseDto.class);
 		if (userResponse.isSuccess()) {
-			Map<String, Object> details = (Map<String, Object>) userResponse.getData().get("userInfo");
+			Map<String, Object> details = (Map<String, Object>) userResponse.getData().get(Constants.USER_INFO_KEY);
 			Map<String, Object> hostDetails = (Map<String, Object>) details
 					.get(order.getProducerOrderEntity().getEmail());
 			Map<String, Object> guestDetails = (Map<String, Object>) details.get(order.getEmail());
-			notificationReqMap.put("hostName", hostDetails.get("firstName") + " " + hostDetails.get("lastName"));
-			notificationReqMap.put("guestName", guestDetails.get("firstName") + " " + guestDetails.get("lastName"));
+			notificationReqMap.put("hostName", hostDetails.get(Constants.FIRST_NAME_KEY) + " " + hostDetails.get(Constants.LAST_NAME_KEY));
+			notificationReqMap.put("guestName", guestDetails.get(Constants.FIRST_NAME_KEY) + " " + guestDetails.get(Constants.LAST_NAME_KEY));
 			notificationReqMap.put("hostEmailId", order.getProducerOrderEntity().getEmail());
 			notificationReqMap.put("guestEmailId", order.getEmail());
 			notificationReqMap.put("servingDate", order.getProducerOrderEntity().getServingDate());
@@ -301,60 +315,65 @@ public class BookingServiceImpl implements BookingService {
 			final String notificationUri = notificationMicroserviceDomain + ":" + notificationMicroservicePort
 					+ "/eatngreet/notificationms/notify/confirm-joining-meal";
 			headers = new HttpHeaders();
-			headers.set("Content-Type", "application/json");
-			headers.set("Authorization", "Bearer " + emailAuthToken);
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.set(Constants.AUTHORIZATION_HEADER_NAME, "Bearer " + emailAuthToken);
 			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(notificationReqMap, headers);
 			restTemplate = new RestTemplate();
-			CommonResponseDto notificationResponse = restTemplate.postForObject(notificationUri, entity, CommonResponseDto.class);
-			if(notificationResponse.isSuccess()) {
-
+			CommonResponseDto notificationResponse = restTemplate.postForObject(notificationUri, entity,
+					CommonResponseDto.class);
+			if (notificationResponse.isSuccess()) {
+				logger.info("Notification mail sent sucessfully.");
 				ResponseUtil.prepareResponse(response, "Mail sent successfully.", Constants.SUCCESS_STRING,
 						"Mail sent successfully.", true);
 			} else {
+				logger.error("Mail was not sent. Reason: {}.", notificationResponse.getInfo());
 				ResponseUtil.prepareResponse(response, "Mail was not sent.", Constants.FAILURE_STRING,
 						"Mail was not sent. Reason: " + notificationResponse.getInfo(), false);
 			}
 		} else {
+			logger.error("Unable to fetch user info. Reason: {}.", userResponse.getInfo());
 			ResponseUtil.prepareResponse(response, "Unable to fetch user info.", Constants.FAILURE_STRING,
 					"Unable to fetch user info. Reason: " + userResponse.getInfo(), false);
 		}
 		return response;
 
-		// get user details
-
 	}
 
-	private ConsumerOrderEntity createConsumerOrderEntity(String consumerEmailId, ConsumerOrderRequestDto consumerOrder,
+	private ConsumerOrderEntity createGuestOrderEntity(String guestEmailId, GuestJoiningRequestDto guestOrder,
 			CommonResponseDto commonResponseDTO) {
-		ConsumerOrderEntity consumerOrderEntity = null;
-		List<ProducerOrderEntity> producerOrderEntityList = producerOrderRepository
-				.findByProducerOrderId(consumerOrder.getProducerOrderId());
-		if (!producerOrderEntityList.isEmpty()) {
-			ProducerOrderEntity producerOrderEntity = producerOrderEntityList.get(0);
-			if (checkPeopleCount(producerOrderEntity)) {
-				if (Util.isValidEmail(consumerEmailId)) {
-					if (!consumerEmailId.equals(producerOrderEntity.getEmail())) {
-						producerOrderEntity.setActualPeopleCount(producerOrderEntity.getActualPeopleCount() + 1);
-						consumerOrderEntity = new ConsumerOrderEntity();
-						consumerOrderEntity.setProducerOrderEntity(producerOrderEntity);
-						consumerOrderEntity.setEmail(consumerEmailId);
+		logger.info("createGuestOrderEntity() of BookingServiceImpl.");
+		ConsumerOrderEntity guestOrderEntity = null;
+		List<ProducerOrderEntity> hostOrderEntityList = producerOrderRepository
+				.findByProducerOrderId(guestOrder.getProducerOrderId());
+		if (!hostOrderEntityList.isEmpty()) {
+			ProducerOrderEntity hostOrderEntity = hostOrderEntityList.get(0);
+			if (checkGuestCountInAMeal(hostOrderEntity)) {
+				if (Util.isValidEmail(guestEmailId)) {
+					if (!guestEmailId.equals(hostOrderEntity.getEmail())) {
+						hostOrderEntity.setActualPeopleCount(hostOrderEntity.getActualPeopleCount() + 1);
+						guestOrderEntity = new ConsumerOrderEntity();
+						guestOrderEntity.setProducerOrderEntity(hostOrderEntity);
+						guestOrderEntity.setEmail(guestEmailId);
 					} else {
+						logger.info("Host trying to book own meal.");
 						ResponseUtil.prepareResponse(commonResponseDTO, "You cannot book your own meal.",
 								Constants.FAILURE_STRING, "Producer cannot book his own meal.", false);
 					}
 				} else {
-					ResponseUtil.prepareResponse(commonResponseDTO, "Invalid email id ", Constants.FAILURE_STRING,
+					logger.error("Invalid email id decrypted from headers. Decrypted email id: {}.", guestEmailId);
+					ResponseUtil.prepareResponse(commonResponseDTO, "Invalid email id.", Constants.FAILURE_STRING,
 							"Invalid email id ", false);
 				}
 			} else {
-				ResponseUtil.prepareResponse(commonResponseDTO, "Can't register, maximum attendee count reached.",
+				logger.error("Host's meal has already been completely booked.");
+				ResponseUtil.prepareResponse(commonResponseDTO, "Can't register, maximum guest count reached.",
 						Constants.FAILURE_STRING, "Maximum people count reached ", false);
 			}
 		}
-		return consumerOrderEntity;
+		return guestOrderEntity;
 	}
 
-	private boolean checkPeopleCount(ProducerOrderEntity producerOrderEntity) {
+	private boolean checkGuestCountInAMeal(ProducerOrderEntity producerOrderEntity) {
 		boolean countAcceptable = false;
 		if (producerOrderEntity.getActualPeopleCount() < producerOrderEntity.getMaxPeopleCount()) {
 			countAcceptable = true;
@@ -364,25 +383,28 @@ public class BookingServiceImpl implements BookingService {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public DataResponseDto fetchAllProducerOrders() {
-		ApplicationLogger.logInfoMessage("Starting BookingServiceImpl for fetch all producer orders",
-				BookingServiceImpl.class);
+	public DataResponseDto fetchAllActiveMeals() {
+		logger.info("fetchAllActiveMeals() of BookingServiceImpl.");
 		DataResponseDto response = new DataResponseDto();
 		try {
 			Integer count = 30;
 			List<ProducerOrderEntity> prodEntities = producerOrderRepository
 					.findAllProducerRecords(PageRequest.of(0, count));
 			if (!prodEntities.isEmpty()) {
-				DataResponseDto dataResponseDTO = getProducersNameAndAddress(prodEntities);
+				DataResponseDto dataResponseDTO = getHostNameAndAddress(prodEntities);
 				if (dataResponseDTO.isSuccess()) {
-					Map<String, Object> userInfo = (Map<String, Object>) dataResponseDTO.getData().get("userInfo");
-					Map<String, List<ProducerOrderResponseDto>> responseMap = getResponseMap(userInfo, prodEntities);
-					response.setData(getRelevantData(responseMap.get("producerOrders")));
+					Map<String, Object> userInfo = (Map<String, Object>) dataResponseDTO.getData().get(Constants.USER_INFO_KEY);
+					Map<String, List<HostOrderResponseDto>> responseMap = getResponseMap(userInfo, prodEntities);
+					response.setData(getRelevantData(responseMap.get(Constants.HOST_ORDERS_KEY)));
 					ResponseUtil.prepareResponse(response, "Successfully fetched Producer Orders.",
 							Constants.SUCCESS_STRING, "Successfully fetched Producer Orders.", true);
 				}
+			} else {
+				logger.warn("No active meals exist on the platform.");
 			}
 		} catch (Exception ex) {
+			logger.error("Exception occurred while trying to fetch all active meals. Exception message: {}",
+					ex.getMessage());
 			ResponseUtil.prepareResponse(response, "Failed to fetch producer orders.", Constants.FAILURE_STRING,
 					"Exception occurred while trying to fetch producer orders. Exception msg: " + ex.getMessage(),
 					false);
@@ -391,7 +413,8 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private Map getRelevantData(List<ProducerOrderResponseDto> orders) {
+	private Map getRelevantData(List<HostOrderResponseDto> hostOrders) {
+		logger.info("getRelevantData() of BookingServiceImpl.");
 		Map<String, Object> data = new HashMap<>();
 		List<ProducerOrdersListingResponseDto> producerOrdersList = new ArrayList<>();
 		ProducerOrdersListingResponseDto producerOrder;
@@ -399,15 +422,15 @@ public class BookingServiceImpl implements BookingService {
 		String imageUrl;
 		String imageThumbnailUrl;
 		String cuisine;
-		for (ProducerOrderResponseDto order : orders) {
+		for (HostOrderResponseDto hostOrder : hostOrders) {
 			imageUrl = "";
 			imageThumbnailUrl = "";
 			cuisine = "";
 			itemNames = new HashSet<>();
 			producerOrder = new ProducerOrdersListingResponseDto();
-			producerOrder.setOrderId(order.getProducerOrderId());
-			producerOrder.setStreetName((String) ((Map<String, Object>) order.getAddress()).get("streetName"));
-			Set<ItemEntity> items = order.getItemList();
+			producerOrder.setOrderId(hostOrder.getProducerOrderId());
+			producerOrder.setStreetName((String) ((Map<String, Object>) hostOrder.getAddress()).get("streetName"));
+			Set<ItemEntity> items = hostOrder.getItemList();
 			for (ItemEntity item : items) {
 				itemNames.add(item.getName());
 				if ("Main Course".equalsIgnoreCase(item.getType())) {
@@ -425,71 +448,73 @@ public class BookingServiceImpl implements BookingService {
 			producerOrder.setImageThumbnailUrl(imageThumbnailUrl);
 			producerOrder.setImageUrl(imageUrl);
 			producerOrder.setCuisine(cuisine);
-			producerOrder.setTotalAttendees(order.getMaxPeopleCount());
-			producerOrder.setCurrentAttendeeCount(order.getActualPeopleCount());
+			producerOrder.setTotalAttendees(hostOrder.getMaxPeopleCount());
+			producerOrder.setCurrentAttendeeCount(hostOrder.getActualPeopleCount());
 			producerOrdersList.add(producerOrder);
 		}
-		data.put("producerOrders", producerOrdersList);
+		data.put(Constants.HOST_ORDERS_KEY, producerOrdersList);
 		return data;
 	}
 
-	private DataResponseDto getProducersNameAndAddress(List<ProducerOrderEntity> prodEntities) {
+	private DataResponseDto getHostNameAndAddress(List<ProducerOrderEntity> hostEntities) {
+		logger.info("getHostNameAndAddress of BookingServiceImpl.");
 		Map<String, Set<String>> emailIdMap = new HashMap<>();
 		Set<String> emailIdSet = new HashSet<>();
-		for (ProducerOrderEntity producerOrderEntity : prodEntities) {
-			if (producerOrderEntity.getEmail() != null) {
-				emailIdSet.add(producerOrderEntity.getEmail());
+		for (ProducerOrderEntity hostEntity : hostEntities) {
+			if (hostEntity.getEmail() != null) {
+				emailIdSet.add(hostEntity.getEmail());
 			}
 		}
-		emailIdMap.put("emailIds", emailIdSet);
-		final String uri = userMicroserviceDomain + ":" + userMicroservicePort
-				+ "/eatngreet/userms/user/get-users-info";
+		emailIdMap.put(Constants.EMAIL_IDS_KEY, emailIdSet);
+		final String uri = userMicroserviceDomain + ":" + userMicroservicePort + Constants.GET_USERS_INFO_API_URL;
 		HttpHeaders headers = new HttpHeaders();
-		headers.set("Content-Type", "application/json");
+		headers.setContentType(MediaType.APPLICATION_JSON);
 		HttpEntity<Map<String, Set<String>>> entity = new HttpEntity<>(emailIdMap, headers);
 		RestTemplate restTemplate = new RestTemplate();
 		return restTemplate.postForObject(uri, entity, DataResponseDto.class);
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map<String, List<ProducerOrderResponseDto>> getResponseMap(Map<String, Object> userAddressMap,
-			List<ProducerOrderEntity> prodEntities) {
-		Map<String, List<ProducerOrderResponseDto>> producerOrderResponseMap = new HashMap<>();
-		List<ProducerOrderResponseDto> prodOrderResponseDtoList = new ArrayList<>();
-		if (!userAddressMap.isEmpty() && !prodEntities.isEmpty()) {
-			for (ProducerOrderEntity prodEntity : prodEntities) {
-				if (prodEntity.getEmail() != null) {
+	private Map<String, List<HostOrderResponseDto>> getResponseMap(Map<String, Object> userAddressMap,
+			List<ProducerOrderEntity> hostEntities) {
+		logger.info("getResponseMap() of BookingServiceImpl.");
+		Map<String, List<HostOrderResponseDto>> producerOrderResponseMap = new HashMap<>();
+		List<HostOrderResponseDto> prodOrderResponseDtoList = new ArrayList<>();
+		if (!userAddressMap.isEmpty() && !hostEntities.isEmpty()) {
+			for (ProducerOrderEntity hostEntity : hostEntities) {
+				if (hostEntity.getEmail() != null) {
 					Map<String, Object> nameAddressMap = (Map<String, Object>) userAddressMap
-							.get(prodEntity.getEmail());
-					ProducerOrderResponseDto producerOrderResponseDto = new ProducerOrderResponseDto();
-					producerOrderResponseDto.setProducerOrderId(prodEntity.getProducerOrderId());
+							.get(hostEntity.getEmail());
+					HostOrderResponseDto producerOrderResponseDto = new HostOrderResponseDto();
+					producerOrderResponseDto.setProducerOrderId(hostEntity.getProducerOrderId());
 					if (!nameAddressMap.isEmpty()) {
-						producerOrderResponseDto.setFirstName((String) nameAddressMap.get("firstName"));
-						producerOrderResponseDto.setLastName((String) nameAddressMap.get("lastName"));
+						producerOrderResponseDto.setFirstName((String) nameAddressMap.get(Constants.FIRST_NAME_KEY));
+						producerOrderResponseDto.setLastName((String) nameAddressMap.get(Constants.LAST_NAME_KEY));
 						producerOrderResponseDto.setAddress(((List<Object>) nameAddressMap.get("addresses")).get(0));
 					}
-					producerOrderResponseDto.setItemList(prodEntity.getItemList());
-					producerOrderResponseDto.setEmail(prodEntity.getEmail());
-					producerOrderResponseDto.setImageUrls(getImageUrls(prodEntity.getItemList()));
-					producerOrderResponseDto.setImageThumbnailUrls(getThumbnailImageUrls(prodEntity.getItemList()));
-					producerOrderResponseDto.setActualPeopleCount(prodEntity.getActualPeopleCount());
-					producerOrderResponseDto.setMaxPeopleCount(prodEntity.getMaxPeopleCount());
-					producerOrderResponseDto.setNote(prodEntity.getNote());
-					producerOrderResponseDto.setOtherItems(prodEntity.getOtherItems());
-					producerOrderResponseDto.setPaymentDeadline(prodEntity.getPaymentDeadline());
-					producerOrderResponseDto.setPreferenceType(prodEntity.getPreferenceType());
-					producerOrderResponseDto.setPrice(prodEntity.getPrice());
-					producerOrderResponseDto.setReservationDeadline(prodEntity.getReservationDeadline());
-					producerOrderResponseDto.setServingDate(prodEntity.getServingDate());
+					producerOrderResponseDto.setItemList(hostEntity.getItemList());
+					producerOrderResponseDto.setEmail(hostEntity.getEmail());
+					producerOrderResponseDto.setImageUrls(getImageUrls(hostEntity.getItemList()));
+					producerOrderResponseDto.setImageThumbnailUrls(getThumbnailUrls(hostEntity.getItemList()));
+					producerOrderResponseDto.setActualPeopleCount(hostEntity.getActualPeopleCount());
+					producerOrderResponseDto.setMaxPeopleCount(hostEntity.getMaxPeopleCount());
+					producerOrderResponseDto.setNote(hostEntity.getNote());
+					producerOrderResponseDto.setOtherItems(hostEntity.getOtherItems());
+					producerOrderResponseDto.setPaymentDeadline(hostEntity.getPaymentDeadline());
+					producerOrderResponseDto.setPreferenceType(hostEntity.getPreferenceType());
+					producerOrderResponseDto.setPrice(hostEntity.getPrice());
+					producerOrderResponseDto.setReservationDeadline(hostEntity.getReservationDeadline());
+					producerOrderResponseDto.setServingDate(hostEntity.getServingDate());
 					prodOrderResponseDtoList.add(producerOrderResponseDto);
 				}
 			}
 		}
-		producerOrderResponseMap.put("producerOrders", prodOrderResponseDtoList);
+		producerOrderResponseMap.put(Constants.HOST_ORDERS_KEY, prodOrderResponseDtoList);
 		return producerOrderResponseMap;
 	}
 
 	private List<String> getImageUrls(Set<ItemEntity> itemList) {
+		logger.info("getImageUrls() of BookingServiceImpl.");
 		List<String> imageUrls = new ArrayList<>();
 		for (ItemEntity itemEntity : itemList) {
 			if (!Util.isStringEmpty(itemEntity.getImageUrl())) {
@@ -499,7 +524,8 @@ public class BookingServiceImpl implements BookingService {
 		return imageUrls;
 	}
 
-	private List<String> getThumbnailImageUrls(Set<ItemEntity> itemList) {
+	private List<String> getThumbnailUrls(Set<ItemEntity> itemList) {
+		logger.info("getThumbnailUrls() of BookingServiceImpl.");
 		List<String> imageUrls = new ArrayList<>();
 		for (ItemEntity itemEntity : itemList) {
 			if (!Util.isStringEmpty(itemEntity.getImageThumbnailUrl())) {
@@ -511,24 +537,22 @@ public class BookingServiceImpl implements BookingService {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CommonResponseDto fetchSingleItem(Long producerOrderId) {
-		ApplicationLogger.logInfoMessage("Starting BookingServiceImpl for fetching single producer order",
-				BookingServiceImpl.class);
+	public DataResponseDto fetchSingleMeal(Long mealId) {
+		logger.info("fetchSingleMeal() of BookingServiceImpl.");
 		DataResponseDto response = new DataResponseDto();
 		try {
-			if (!Util.isLongValueEmpty(producerOrderId)) {
-				List<ProducerOrderEntity> prodEntityList = producerOrderRepository
-						.findByProducerOrderId(producerOrderId);
+			if (!Util.isLongValueEmpty(mealId)) {
+				List<ProducerOrderEntity> prodEntityList = producerOrderRepository.findByProducerOrderId(mealId);
 				if (!prodEntityList.isEmpty()) {
 					ProducerOrderEntity prodEntity = prodEntityList.get(0);
 					if (prodEntity != null) {
 						List<ProducerOrderEntity> prodEntities = new ArrayList<>();
 						prodEntities.add(prodEntity);
-						DataResponseDto dataResponseDTO = getProducersNameAndAddress(prodEntities);
+						DataResponseDto dataResponseDTO = getHostNameAndAddress(prodEntities);
 						if (dataResponseDTO.isSuccess()) {
 							Map<String, Object> userResponse = dataResponseDTO.getData();
-							Map<String, List<ProducerOrderResponseDto>> responseMap = getResponseMap(
-									(Map<String, Object>) userResponse.get("userInfo"), prodEntities);
+							Map<String, List<HostOrderResponseDto>> responseMap = getResponseMap(
+									(Map<String, Object>) userResponse.get(Constants.USER_INFO_KEY), prodEntities);
 							response.setData(responseMap);
 							ResponseUtil.prepareResponse(response, "Successfully fetched order.",
 									Constants.SUCCESS_STRING, "Successfully fetched order.", true);
@@ -540,9 +564,12 @@ public class BookingServiceImpl implements BookingService {
 						}
 					}
 				} else {
+					logger.error("No meal found corresponsding to given meal id. Meal id is: {}.", mealId);
 					ResponseUtil.prepareResponse(response, "Meal not found. Please try again later.",
 							Constants.FAILURE_STRING, "No order found corresponding to requested orderId.", false);
 				}
+			} else {
+				logger.error("Invalid meal ID received in request. Meal id is: {}.", mealId);
 			}
 		} catch (Exception ex) {
 			ResponseUtil.prepareResponse(response, "Some problem occurred. Please try again.", Constants.FAILURE_STRING,
@@ -555,71 +582,82 @@ public class BookingServiceImpl implements BookingService {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public DataResponseDto fetchSingleConsumerItem(HttpServletRequest request) {
+	public DataResponseDto fetchAllJoinedMealsOfUser(HttpServletRequest request) {
+		logger.info("fetchAllJoinedMealsOfUser() of BookingServiceImpl.");
 		DataResponseDto response = new DataResponseDto();
 		Map<String, List<MyConsumerOrdersResponseDto>> consumerOrderResponseMap = new HashMap<>();
 		String email = Util.getDecryptedEmail(request);
-		if (Util.isValidEmail(email)) {
-			List<ConsumerOrderEntity> consumerOrderEntityList = consumerOrderRepository.findByEmail(email);
-			if (!consumerOrderEntityList.isEmpty()) {
-				Map<String, Set<String>> emailIdMap = new HashMap<>();
-				Set<String> emailIdSet = new HashSet<>();
-				for (ConsumerOrderEntity consumerOrder : consumerOrderEntityList) {
-					if (consumerOrder.getEmail() != null) {
-						emailIdSet.add(consumerOrder.getProducerOrderEntity().getEmail());
+		try {
+			if (Util.isValidEmail(email)) {
+				List<ConsumerOrderEntity> consumerOrderEntityList = consumerOrderRepository.findByEmail(email);
+				if (!consumerOrderEntityList.isEmpty()) {
+					Map<String, Set<String>> emailIdMap = new HashMap<>();
+					Set<String> emailIdSet = new HashSet<>();
+					for (ConsumerOrderEntity consumerOrder : consumerOrderEntityList) {
+						if (consumerOrder.getEmail() != null) {
+							emailIdSet.add(consumerOrder.getProducerOrderEntity().getEmail());
+						}
 					}
-				}
-				emailIdMap.put("emailIds", emailIdSet);
-				final String uri = userMicroserviceDomain + ":" + userMicroservicePort
-						+ "/eatngreet/userms/user/get-users-info";
-				HttpHeaders headers = new HttpHeaders();
-				headers.set("Content-Type", "application/json");
-				HttpEntity<Map<String, Set<String>>> entity = new HttpEntity<>(emailIdMap, headers);
-				RestTemplate restTemplate = new RestTemplate();
-				DataResponseDto map = restTemplate.postForObject(uri, entity, DataResponseDto.class);
-				Map<String, Object> userNameAddressMap = (Map<String, Object>) map.getData().get("userInfo");
-				List<MyConsumerOrdersResponseDto> consumerOrders = new ArrayList<>();
-				for (ConsumerOrderEntity consumerOrderEntity : consumerOrderEntityList) {
-					MyConsumerOrdersResponseDto consumerOrderResponseObj = new MyConsumerOrdersResponseDto();
-					if (consumerOrderEntity.getProducerOrderEntity() != null) {
-						Map<String, Object> userNameAddressInfo = (Map<String, Object>) userNameAddressMap
-								.get(consumerOrderEntity.getProducerOrderEntity().getEmail());
-						consumerOrderResponseObj
-								.setItemList(consumerOrderEntity.getProducerOrderEntity().getItemList());
-						consumerOrderResponseObj
-								.setServingDate(consumerOrderEntity.getProducerOrderEntity().getServingDate());
-						consumerOrderResponseObj.setPrice(consumerOrderEntity.getProducerOrderEntity().getPrice());
-						consumerOrderResponseObj
-								.setPreference(consumerOrderEntity.getProducerOrderEntity().getPreferenceType());
-						consumerOrderResponseObj.setFirstName((String) userNameAddressInfo.get("firstName"));
-						consumerOrderResponseObj.setLastName((String) userNameAddressInfo.get("lastName"));
-						consumerOrderResponseObj.setAddress(((List) userNameAddressInfo.get("addresses")).get(0));
-						consumerOrders.add(consumerOrderResponseObj);
+					emailIdMap.put(Constants.EMAIL_IDS_KEY, emailIdSet);
+					final String uri = userMicroserviceDomain + ":" + userMicroservicePort
+							+ Constants.GET_USERS_INFO_API_URL;
+					HttpHeaders headers = new HttpHeaders();
+					headers.setContentType(MediaType.APPLICATION_JSON);
+					HttpEntity<Map<String, Set<String>>> entity = new HttpEntity<>(emailIdMap, headers);
+					RestTemplate restTemplate = new RestTemplate();
+					DataResponseDto map = restTemplate.postForObject(uri, entity, DataResponseDto.class);
+					Map<String, Object> userNameAddressMap = (Map<String, Object>) map.getData().get(Constants.USER_INFO_KEY);
+					List<MyConsumerOrdersResponseDto> consumerOrders = new ArrayList<>();
+					for (ConsumerOrderEntity consumerOrderEntity : consumerOrderEntityList) {
+						MyConsumerOrdersResponseDto consumerOrderResponseObj = new MyConsumerOrdersResponseDto();
+						if (consumerOrderEntity.getProducerOrderEntity() != null) {
+							Map<String, Object> userNameAddressInfo = (Map<String, Object>) userNameAddressMap
+									.get(consumerOrderEntity.getProducerOrderEntity().getEmail());
+							consumerOrderResponseObj
+									.setItemList(consumerOrderEntity.getProducerOrderEntity().getItemList());
+							consumerOrderResponseObj
+									.setServingDate(consumerOrderEntity.getProducerOrderEntity().getServingDate());
+							consumerOrderResponseObj.setPrice(consumerOrderEntity.getProducerOrderEntity().getPrice());
+							consumerOrderResponseObj
+									.setPreference(consumerOrderEntity.getProducerOrderEntity().getPreferenceType());
+							consumerOrderResponseObj.setFirstName((String) userNameAddressInfo.get(Constants.FIRST_NAME_KEY));
+							consumerOrderResponseObj.setLastName((String) userNameAddressInfo.get(Constants.LAST_NAME_KEY));
+							consumerOrderResponseObj.setAddress(((List) userNameAddressInfo.get("addresses")).get(0));
+							consumerOrders.add(consumerOrderResponseObj);
+						}
 					}
+					ResponseUtil.prepareResponse(response, "Successfully fetched orders.", Constants.SUCCESS_STRING,
+							"Successfully fetched orders.", true);
+					consumerOrderResponseMap.put("consumerOrders", consumerOrders);
+					response.setData(consumerOrderResponseMap);
+				} else {
+					logger.info("User hasn't joined any meals.");
+					ResponseUtil.prepareResponse(response, Constants.NO_ORDERS_EXIST, Constants.SUCCESS_STRING,
+							Constants.NO_ORDERS_EXIST, true);
 				}
-				ResponseUtil.prepareResponse(response, "Successfully fetched orders.", Constants.SUCCESS_STRING,
-						"Successfully fetched orders.", true);
-				consumerOrderResponseMap.put("consumerOrders", consumerOrders);
-				response.setData(consumerOrderResponseMap);
 			} else {
-				ResponseUtil.prepareResponse(response, "No orders exist.", Constants.SUCCESS_STRING, "No orders exist.",
-						true);
+				logger.error("Invalid email id decrypted from headers. Decrypted email id: {}", email);
+				ResponseUtil.prepareResponse(response, "Please try again later.", Constants.FAILURE_STRING,
+						"Invalid email id decrypted from header auth token. Decrypted email id: " + email, false);
 			}
-		} else {
-			ResponseUtil.prepareResponse(response, "Please try again later.", Constants.FAILURE_STRING,
-					"Invalid email id decrypted from header auth token. Decrypted email id: " + email, false);
+		} catch (Exception e) {
+			logger.error("Exception occurred in fetching joined orders for user: {}. Exception message: {}", email,
+					e.getMessage());
+			ResponseUtil.prepareResponse(response, "Some problem occurred. Please try again later.",
+					Constants.FAILURE_STRING,
+					"Exception occurred in fetching joined orders. Exception message: " + e.getMessage(), false);
 		}
-
 		return response;
 	}
 
 	@Override
-	public CommonResponseDto fetchSingleProducerItem(HttpServletRequest request) {
+	public DataResponseDto fetchAllHostedMealsOfUser(HttpServletRequest request) {
+		logger.info("fetchAllJoinedMealsOfUser() of BookingServiceImpl.");
 		DataResponseDto response = new DataResponseDto();
 		Map<String, List<MyProducerOrdersResponseDto>> prodMap = new HashMap<>();
 		List<MyProducerOrdersResponseDto> producerOrderResponseDtoList = new ArrayList<>();
+		String email = Util.getDecryptedEmail(request);
 		try {
-			String email = Util.getDecryptedEmail(request);
 			if (Util.isValidEmail(email)) {
 				List<ProducerOrderEntity> producerOrderEntityList = producerOrderRepository.findByEmail(email);
 				if (!producerOrderEntityList.isEmpty()) {
@@ -637,22 +675,24 @@ public class BookingServiceImpl implements BookingService {
 						producerOrderResponseDto.setNote(producerOrderEntity.getNote());
 						producerOrderResponseDtoList.add(producerOrderResponseDto);
 					}
-					prodMap.put("producerOrders", producerOrderResponseDtoList);
+					prodMap.put(Constants.HOST_ORDERS_KEY, producerOrderResponseDtoList);
 					ResponseUtil.prepareResponse(response, "Successfully fetched producer orders.",
 							Constants.SUCCESS_STRING, "Successfully fetched producer orders.", true);
 				} else {
-					ResponseUtil.prepareResponse(response, "No orders exist.", Constants.FAILURE_STRING,
-							"No orders exist.", false);
+					ResponseUtil.prepareResponse(response, Constants.NO_ORDERS_EXIST, Constants.FAILURE_STRING,
+							Constants.NO_ORDERS_EXIST, false);
 				}
 
 			} else {
-				ResponseUtil.prepareResponse(response, "Please try again later.", Constants.FAILURE_STRING,
-						"Invalid email id decrypted from headers.", false);
+				logger.error("Invalid email id decrypted from headers. Decrypted email id: {}", email);
+				ResponseUtil.prepareResponse(response, Constants.TRY_AGAIN_MSG_FOR_USERS, Constants.FAILURE_STRING,
+						"Invalid email id decrypted from headers. Decrypted email id: " + email, false);
 			}
 		} catch (Exception e) {
-			ResponseUtil.prepareResponse(response, "Some problem occurred. Please try again later.",
-					Constants.FAILURE_STRING,
-					"Exception occurred in fetching producer orders. Exception message: " + e.getMessage(), false);
+			logger.error("Exception occurred in fetching hosted orders for user: {}. Exception message: {}", email,
+					e.getMessage());
+			ResponseUtil.prepareResponse(response, Constants.TRY_AGAIN_MSG_FOR_USERS, Constants.FAILURE_STRING,
+					"Exception occurred in fetching hosted orders. Exception message: " + e.getMessage(), false);
 		}
 
 		response.setData(prodMap);

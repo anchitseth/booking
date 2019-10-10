@@ -1,59 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
 
-<springProfile name="dev">
-	<configuration>
-		<property name="Logs" value="/Users/anchitseth/Documents/eat-n-greet_workspace/backend/bookingmicroservice/src/main/resources/logs" />
-		<appender name="RollingFile"
-			class="ch.qos.logback.core.rolling.RollingFileAppender">
-			<file>/${Logs}/application.log</file>
-			<encoder
-				class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-				<Pattern>%d{yyyy-MM-dd HH:mm:ss} - %-5level - %logger{36} - %msg%n
-				</Pattern>
-			</encoder>
-			<rollingPolicy
-				class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-				            <!-- rollover daily -->
-				<fileNamePattern>/${Logs}/archived/debug.%d{yyyy-MM-dd-HH}.%i.log
-				</fileNamePattern>
-				<maxHistory>30</maxHistory>
-				<timeBasedFileNamingAndTriggeringPolicy
-					class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-					<maxFileSize>10MB</maxFileSize>
-				</timeBasedFileNamingAndTriggeringPolicy>
-			</rollingPolicy>
-		</appender>
-		<appender name="CONSOLE"
-			class="ch.qos.logback.core.ConsoleAppender">
-			<layout class="ch.qos.logback.classic.PatternLayout">
-				<Pattern>
-					%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n
-				</Pattern>
-			</layout>
-		</appender>
-		<logger name="com.nus.iss.eatngreet.booking.debug" level="debug"
-			additivity="false">
-			<appender-ref ref="RollingFile" />
-			<appender-ref ref="CONSOLE" />
-		</logger>
-		<logger name="com.nus.iss.eatngreet.booking.info" level="info"
-			additivity="false">
-			<appender-ref ref="RollingFile" />
-			<appender-ref ref="CONSOLE" />
-		</logger>
-		<logger name="com.nus.iss.eatngreet.booking.warn" level="warn"
-			additivity="false">
-			<appender-ref ref="RollingFile" />
-			<appender-ref ref="CONSOLE" />
-		</logger>
-		<logger name="com.nus.iss.eatngreet.booking.error" level="error"
-			additivity="false">
-			<appender-ref ref="RollingFile" />
-			<appender-ref ref="CONSOLE" />
-		</logger>
-		<root level="error">
-			<appender-ref ref="RollingFile" />
-			<appender-ref ref="CONSOLE" />
-		</root>
-	</configuration>
-</springProfile>
+    <springProfile name="default">
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+
+        <appender name="FILE-ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>app.log</file>
+
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/archived/app.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <!-- each archived file, size max 10MB -->
+                <maxFileSize>10MB</maxFileSize>
+                <!-- total size of all archive files, if total size > 20GB, it will delete old archived file -->
+                <totalSizeCap>20GB</totalSizeCap>
+                <!-- 60 days to keep -->
+                <maxHistory>60</maxHistory>
+            </rollingPolicy>
+
+            <encoder>
+                <pattern>%d %p %c{1.} [%t] %m%n</pattern>
+            </encoder>
+        </appender>
+
+        <logger name="org.springframework" level="INFO"/>
+        <logger name="com.nus" level="DEBUG"/>
+        <root level="ERROR">
+            <appender-ref ref="FILE-ROLLING"/>
+        </root>
+    </springProfile>
+
+</configuration>

@@ -6,7 +6,7 @@ import java.util.List;
 import lombok.Data;
 
 @Data
-public class ProducerOrderRequestDto {
+public class CreateMealRequestDto {
 	private List<String> itemList;
 	private Date servingDate;
 	private Date reservationDeadline;
